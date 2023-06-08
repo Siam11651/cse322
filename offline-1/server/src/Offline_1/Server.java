@@ -1,5 +1,6 @@
 package Offline_1;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Vector;
@@ -54,7 +55,23 @@ public class Server
             }
         }
 
+        File root = new File("./root", userName);
+
         client.SetUserName(userName);
+        client.SetRoot(root);
+
+        File publicFileDir = new File(root, "public");
+        File privateFileDir = new File(root, "private");
+
+        if(!publicFileDir.exists())
+        {
+            publicFileDir.mkdirs();
+        }
+
+        if(!privateFileDir.exists())
+        {
+            privateFileDir.mkdirs();
+        }
 
         return true;
     }
@@ -67,5 +84,10 @@ public class Server
         }
 
         return server;
+    }
+
+    public synchronized Vector<Client> GetClients()
+    {
+        return clients;
     }
 }

@@ -5,13 +5,14 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ConnectException;
 import java.net.Socket;
-import java.util.Scanner;
 
 import Offline_1.Threads.ReadThread;
 import Offline_1.Threads.WriteThread;
 
 public class Client
 {
+    private String userName;
+    private boolean closed;
     private boolean loggedIn;
     private static String host;
     private static  int port;
@@ -23,6 +24,7 @@ public class Client
     private Client()
     {
         loggedIn = false;
+        closed = false;
         socket = null;
 
         try
@@ -70,6 +72,16 @@ public class Client
         }
     }
 
+    public synchronized void SetUserName(String userName)
+    {
+        this.userName = userName;
+    }
+
+    public synchronized String GetUserName()
+    {
+        return userName;
+    }
+
     public synchronized void SetLoggedIn(boolean loggedIn)
     {
         this.loggedIn = loggedIn;
@@ -82,16 +94,24 @@ public class Client
 
     public synchronized void Close()
     {
-        readThread.Stop();
-        writeThread.Stop();
+        if(!closed)
+        {
+            closed = true;
 
-        try
-        {
-            socket.close();
-        }
-        catch(IOException exception)
-        {
-            exception.printStackTrace();
+            readThread.Stop();
+            writeThread.Stop();
+
+            try
+            {
+                if(!socket.isClosed())
+                {
+                    socket.close();
+                }
+            }
+            catch(IOException exception)
+            {
+                exception.printStackTrace();
+            }
         }
     }
 }

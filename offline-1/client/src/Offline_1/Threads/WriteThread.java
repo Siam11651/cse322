@@ -4,7 +4,10 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 
 import Offline_1.Client;
+import Offline_1.Request.ListFilesRequest;
 import Offline_1.Request.LoginRequest;
+import Offline_1.Request.Request;
+import Offline_1.Request.ListFilesRequest.RequestType;
 
 public class WriteThread extends Thread
 {
@@ -26,7 +29,6 @@ public class WriteThread extends Thread
 
         while(running)
         {
-            
             int available = 0;
 
             try
@@ -45,7 +47,7 @@ public class WriteThread extends Thread
                 try
                 {
                     System.in.read(consoleInputBytes);
-                    String command = new String(consoleInputBytes);
+                    String command = (new String(consoleInputBytes)).trim();
                     String tokenizedCommand[] = command.split(" ");
 
                     if(tokenizedCommand[0].equals("login"))
@@ -65,7 +67,46 @@ public class WriteThread extends Thread
                     }
                     else if(tokenizedCommand[0].equals("client-list"))
                     {
-                        
+                        if(Client.GetClient().IsLoggedIn())
+                        {
+                            objectOutputStream.writeObject(new Request("client-list"));
+                        }
+                        else
+                        {
+                            System.out.println("You need to login to get access to this information");
+                        }
+                    }
+                    else if(tokenizedCommand[0].equals("logout"))
+                    {
+                        objectOutputStream.writeObject(new Request("logout-request"));
+                        Client.GetClient().Close();
+                    }
+                    else if(tokenizedCommand[0].equals("list-files"))
+                    {
+                        Client client = Client.GetClient();
+
+                        if(client.IsLoggedIn())
+                        {
+                            if(tokenizedCommand.length == 1 || tokenizedCommand[1].equals("all"))
+                            {
+                                objectOutputStream.writeObject(new ListFilesRequest(client.GetUserName(), RequestType.ALL));
+                            }
+                            else
+                            {   
+                                if(tokenizedCommand[1].equals("public"))
+                                {
+                                    objectOutputStream.writeObject(new ListFilesRequest(client.GetUserName(), RequestType.PUBLIC));
+                                }
+                                else if(tokenizedCommand[1].equals("private"))
+                                {
+                                    objectOutputStream.writeObject(new ListFilesRequest(client.GetUserName(), RequestType.PRIVATE));
+                                }
+                                else
+                                {
+                                    // exception
+                                }
+                            }
+                        }
                     }
                 }
                 catch(IOException exception)
