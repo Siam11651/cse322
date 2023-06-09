@@ -1,12 +1,11 @@
 package Offline_1;
 
-import java.io.IOException;
+import Offline_1.Client.Client;
 
-class Main
+public class Main
 {
-    public static void main(String[] args) throws IOException
+    public static void main(String[] args)
     {
-        Client.InitialiseClient("localhost", 6666);
-        Client.GetClient();
-    }
+        new Client("localhost", 6969);
+    }    
 }

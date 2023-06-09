@@ -1,82 +1,57 @@
 package Offline_1;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Vector;
 
-import Offline_1.Response.Response;
+import Offline_1.Client.Client;
 
-public class Server
+public class Server extends Thread
 {
-    private ServerSocket serverSocket;
+    final private int PORT = 6969;
+    private boolean running;
     private static Server server;
-    final private Vector<Client> clients;
+    private ServerSocket serverSocket;
+    private Vector<Client> loggedInClients;
 
     private Server()
     {
-        clients = new Vector<>();
+        running = true;
+        loggedInClients = new Vector<>();
 
         try
         {
-            serverSocket = new ServerSocket(6666);
+            serverSocket = new ServerSocket(PORT);
 
-            System.out.println("Launched server");
-            System.out.println("Local socket address: " + serverSocket.getLocalSocketAddress());
+            System.out.println("Launched server with local socket address: " + serverSocket.getLocalSocketAddress());
+            start();
         }
         catch(IOException exception)
         {
+            Stop();
             exception.printStackTrace();
         }
     }
 
-    public void Connect() throws IOException
+    @Override
+    public void run()
     {
-        Client client = new Client(serverSocket.accept());
-        
-        clients.add(client);
-        client.SendResponse(new Response("connection-established"));
-    }
+        super.run();
 
-    public synchronized void RemoveClient(Client client)
-    {
-        clients.remove(client);
-    }
-
-    public synchronized boolean LoginClient(String userName, Client client)
-    {
-        for(int i = 0; i < clients.size(); ++i)
+        while(running)
         {
-            if(clients.get(i).GetUserName().equals(userName))
+            try
             {
-                clients.remove(client);
-
-                return false;
+                new Client(serverSocket.accept());
+            }
+            catch(IOException exception)
+            {
+                exception.printStackTrace();
             }
         }
-
-        File root = new File("./root", userName);
-
-        client.SetUserName(userName);
-        client.SetRoot(root);
-
-        File publicFileDir = new File(root, "public");
-        File privateFileDir = new File(root, "private");
-
-        if(!publicFileDir.exists())
-        {
-            publicFileDir.mkdirs();
-        }
-
-        if(!privateFileDir.exists())
-        {
-            privateFileDir.mkdirs();
-        }
-
-        return true;
     }
 
-    public static Server GetServer()
+    public synchronized static Server GetServer()
     {
         if(server == null)
         {
@@ -86,8 +61,27 @@ public class Server
         return server;
     }
 
-    public synchronized Vector<Client> GetClients()
+    public synchronized Vector<Client> GetLoggedInClients()
     {
-        return clients;
+        return loggedInClients;
+    }
+
+    public synchronized void Stop()
+    {
+        running = false;
+    }
+
+    public synchronized void Close()
+    {
+        Stop();
+
+        try
+        {
+            serverSocket.close();
+        }
+        catch(IOException exception)
+        {
+            exception.printStackTrace();
+        }
     }
 }

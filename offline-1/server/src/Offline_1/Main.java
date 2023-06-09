@@ -1,16 +1,9 @@
 package Offline_1;
 
-import java.io.IOException;
-
 public class Main
-{    
-    public static void main(String[] args) throws IOException
+{
+    public static void main(String[] args)
     {
-        Server server = Server.GetServer();
-
-        while(true)
-        {
-            server.Connect();
-        }
+        Server.GetServer();
     }
 }
