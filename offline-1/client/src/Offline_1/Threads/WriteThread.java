@@ -3,6 +3,8 @@ package Offline_1.Threads;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 
+import javax.crypto.Cipher;
+
 import Offline_1.Client;
 import Offline_1.Request.ListFilesRequest;
 import Offline_1.Request.LoginRequest;
@@ -26,6 +28,8 @@ public class WriteThread extends Thread
     public void run()
     {
         super.run();
+
+        Client client = Client.GetClient();
 
         while(running)
         {
@@ -52,8 +56,6 @@ public class WriteThread extends Thread
 
                     if(tokenizedCommand[0].equals("login"))
                     {
-                        Client client = Client.GetClient();
-
                         if(client.IsLoggedIn())
                         {
                             System.out.println("Already logged in, log out first");
@@ -67,7 +69,7 @@ public class WriteThread extends Thread
                     }
                     else if(tokenizedCommand[0].equals("client-list"))
                     {
-                        if(Client.GetClient().IsLoggedIn())
+                        if(client.IsLoggedIn())
                         {
                             objectOutputStream.writeObject(new Request("client-list"));
                         }
@@ -79,12 +81,10 @@ public class WriteThread extends Thread
                     else if(tokenizedCommand[0].equals("logout"))
                     {
                         objectOutputStream.writeObject(new Request("logout-request"));
-                        Client.GetClient().Close();
+                        client.Close();
                     }
                     else if(tokenizedCommand[0].equals("list-files"))
                     {
-                        Client client = Client.GetClient();
-
                         if(client.IsLoggedIn())
                         {
                             if(tokenizedCommand.length == 1 || tokenizedCommand[1].equals("all"))
@@ -105,6 +105,22 @@ public class WriteThread extends Thread
                                 {
                                     // exception
                                 }
+                            }
+                        }
+                    }
+                    else if(tokenizedCommand[0].equals("list-files-others"))
+                    {
+                        if(client.IsLoggedIn())
+                        {
+                            if(tokenizedCommand.length > 1)
+                            {
+                                String userName = tokenizedCommand[1];
+
+                                objectOutputStream.writeObject(new ListFilesRequest(userName, RequestType.PRIVATE));
+                            }
+                            else
+                            {
+                                System.out.println("Please mention username and try again");
                             }
                         }
                     }
