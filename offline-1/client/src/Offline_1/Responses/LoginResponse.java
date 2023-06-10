@@ -1,10 +1,10 @@
 package Offline_1.Responses;
 
-public class LoginSuccessfulResponse extends Response
+public class LoginResponse extends Response
 {
     private String userName;
 
-    public LoginSuccessfulResponse(String userName)
+    public LoginResponse(String userName)
     {
         this.userName = new String(userName);
     }
@@ -12,5 +12,10 @@ public class LoginSuccessfulResponse extends Response
     public String GetUserName()
     {
         return userName;
+    }
+
+    public boolean IsSuccessful()
+    {
+        return userName.length() > 0;
     }
 }

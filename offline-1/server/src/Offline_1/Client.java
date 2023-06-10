@@ -1,17 +1,20 @@
 package Offline_1;
 
 import java.io.EOFException;
+import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.Vector;
 
+import Offline_1.Requests.FilesListRequest;
 import Offline_1.Requests.LoginRequest;
 import Offline_1.Requests.Request;
 import Offline_1.Requests.UsersListRequest;
-import Offline_1.Responses.LoginFailedResponse;
-import Offline_1.Responses.LoginSuccessfulResponse;
+import Offline_1.Requests.FilesListRequest.Privacy;
+import Offline_1.Responses.FilesListResponse;
+import Offline_1.Responses.LoginResponse;
 import Offline_1.Responses.UsersListResponse;
 
 public class Client extends Thread
@@ -71,13 +74,30 @@ public class Client extends Thread
 
                         if(loggedIn)
                         {
-                            objectOutputStream.writeObject(new LoginFailedResponse());
+                            objectOutputStream.writeObject(new LoginResponse(""));
                         }
                         else
-                        {   
+                        {
                             SetUserName(new String(loginRequest.GetUserName()));
                             loggedInClients.add(this);
-                            objectOutputStream.writeObject(new LoginSuccessfulResponse(new String(userName)));
+                            objectOutputStream.writeObject(new LoginResponse(new String(userName)));
+                        }
+                    }
+
+                    if(IsLoggedIn())
+                    {
+                        File userRoot = new File("root", userName);
+                        File userPrivate = new File(userRoot, "private");
+                        File userPublic = new File(userRoot, "public");
+
+                        if(!userPrivate.exists())
+                        {
+                            userPrivate.mkdirs();
+                        }
+
+                        if(!userPublic.exists())
+                        {
+                            userPublic.mkdirs();
                         }
                     }
                 }
@@ -94,6 +114,45 @@ public class Client extends Thread
                         }
 
                         objectOutputStream.writeObject(new UsersListResponse(usersList));
+                    }
+                }
+                else if(request instanceof FilesListRequest)
+                {
+                    if(IsLoggedIn())
+                    {
+                        FilesListRequest filesListRequest = (FilesListRequest)request;
+                        String requestUserName = filesListRequest.GetUserName();
+                        Privacy privacy = filesListRequest.GetPrivacy();
+
+                        if(privacy == Privacy.PUBLIC)
+                        {
+                            Vector<File> publicFiles = Server.GetServer().GetPublicFilesList(requestUserName);
+
+                            objectOutputStream.writeObject(new FilesListResponse(null, publicFiles));
+                        }
+                        else
+                        {
+                            if(requestUserName.equals(userName))
+                            {
+                                Vector<File> privateFiles = Server.GetServer().GetPrivateFilesList(requestUserName);
+                                Vector<File> publicFiles = null;
+
+                                if(privacy == Privacy.ALL)
+                                {
+                                    publicFiles = Server.GetServer().GetPublicFilesList(requestUserName);
+                                }
+
+                                objectOutputStream.writeObject(new FilesListResponse(privateFiles, publicFiles));
+                            }
+                            else
+                            {
+                                
+                            }
+                        }
+                    }
+                    else
+                    {
+
                     }
                 }
             }
@@ -128,6 +187,18 @@ public class Client extends Thread
     public synchronized void SetUserName(String userName)
     {
         this.userName = userName;
+    }
+
+    public synchronized boolean IsLoggedIn()
+    {
+        if(userName.length() > 0)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     public synchronized void Stop()

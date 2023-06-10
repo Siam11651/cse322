@@ -2,23 +2,15 @@ package Offline_1;
 
 public class Commands
 {
-    public class Login
-    {
-        final public static String TEXT = "login";
-    }
+    final public static String LOGIN = "login";
+    final public static String USERS_LIST = "users-list";
+    final public static String FILES_LIST = "files-list";
 
-    public class UsersList
+    public class FilesListArguments
     {
-        final public static String TEXT = "users-list";
-    }
-
-    public class Logout
-    {
-        final public static String TEXT = "logout";
-    }
-
-    public class Exit
-    {
-        final public static String TEXT = "exit";
-    }
+        public static String OWN = "own";
+        public static String PUBLIC = "public";
+        public static String PRIVATE = "private";
+        public static String ALL = "all";
+    };
 }

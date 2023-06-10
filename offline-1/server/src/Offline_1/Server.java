@@ -1,7 +1,9 @@
 package Offline_1;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.Arrays;
 import java.util.Vector;
 
 public class Server extends Thread
@@ -44,6 +46,40 @@ public class Server extends Thread
             {
                 exception.printStackTrace();
             }
+        }
+    }
+
+    public synchronized Vector<File> GetPrivateFilesList(String userName)
+    {
+        File userRoot = new File("root", userName);
+
+        if(userRoot.exists())
+        {
+            File privateRoot = new File(userRoot, "private");
+            File files[] = privateRoot.listFiles();
+            
+            return new Vector<>(Arrays.asList(files));
+        }
+        else
+        {
+            return null;
+        }
+    }
+
+    public synchronized Vector<File> GetPublicFilesList(String userName)
+    {
+        File userRoot = new File("root", userName);
+
+        if(userRoot.exists())
+        {
+            File publicRoot = new File(userRoot, "public");
+            File files[] = publicRoot.listFiles();
+
+            return new Vector<>(Arrays.asList(files));
+        }
+        else
+        {
+            return null;
         }
     }
 
