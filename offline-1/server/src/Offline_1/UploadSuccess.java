@@ -1,6 +1,8 @@
 package Offline_1;
 
-public class UploadSuccess
+import java.io.Serializable;
+
+public class UploadSuccess implements Serializable
 {
     public UploadSuccess()
     {

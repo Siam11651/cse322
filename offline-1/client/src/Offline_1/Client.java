@@ -175,7 +175,13 @@ public class Client extends Thread
                             String filePath = tokenizedCommand[1];
                             String fileName = tokenizedCommand[2];
                             String privacyString = tokenizedCommand[3];
-                            String requestId = tokenizedCommand[4];
+                            String requestId = "";
+
+                            if(tokenizedCommand.length > 4)
+                            {
+                                requestId = tokenizedCommand[4];
+                            }
+
                             Privacy privacy = Privacy.ALL;
                             File file = new File(filePath);
                             boolean uploadRequestable = true;
@@ -232,7 +238,8 @@ public class Client extends Thread
                                     long chunkCount = fileSize / chunkSize;
                                     long lastChunkSize = fileSize % chunkSize;
                                     UploadAcknowledge uploadAcknowledge = null;
-                                    long uploadedChunk = 0;
+                                    long uploadedSize = 0;
+                                    boolean useLastChunk = true;
                                     
                                     for(long i = 0; i < chunkCount;  ++i)
                                     {
@@ -245,17 +252,19 @@ public class Client extends Thread
 
                                         if(uploadAcknowledge.IsOk())
                                         {
-                                            uploadedChunk += chunkSize;
+                                            uploadedSize += chunkSize;
 
-                                            System.out.println("Uploaded " + ((chunkSize / fileSize) * 100) + "% of file");
+                                            System.out.println("Uploaded " + ((uploadedSize / fileSize) * 100) + "% of file");
                                         }
                                         else
                                         {
-                                            
+                                            useLastChunk = false;
+
+                                            break;
                                         }
                                     }
 
-                                    if(uploadAcknowledge.IsOk() && lastChunkSize > 0)
+                                    if(uploadAcknowledge != null && uploadAcknowledge.IsOk() && lastChunkSize > 0)
                                     {
                                         byte chunk[] = new byte[(int)lastChunkSize];
 
@@ -265,12 +274,18 @@ public class Client extends Thread
                                         uploadAcknowledge = (UploadAcknowledge)objectInputStream.readObject();
                                     }
 
-                                    if(uploadAcknowledge.IsOk())
+                                    fileInputStream.close();
+
+                                    if(uploadAcknowledge != null && uploadAcknowledge.IsOk())
                                     {
-                                        System.out.println("Uploaded " + ((chunkSize / fileSize) * 100) + "% of file");
+                                        System.out.println("Uploaded " + ((uploadedSize / fileSize) * 100) + "% of file");
                                         objectOutputStream.writeObject(new UploadComplete());
                                         objectInputStream.readObject();
                                         System.out.println("Upload completed successfully");
+                                    }
+                                    else
+                                    {
+                                        System.out.println("Error occured in file upload");
                                     }
                                 }
                                 else

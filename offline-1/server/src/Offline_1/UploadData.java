@@ -1,6 +1,8 @@
 package Offline_1;
 
-public class UploadData
+import java.io.Serializable;
+
+public class UploadData implements Serializable
 {
     private String fileId;
     private byte[] chunk;

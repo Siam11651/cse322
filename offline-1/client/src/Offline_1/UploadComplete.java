@@ -1,6 +1,8 @@
 package Offline_1;
 
-public class UploadComplete
+import java.io.Serializable;
+
+public class UploadComplete implements Serializable
 {
     public UploadComplete()
     {

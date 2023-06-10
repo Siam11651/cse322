@@ -1,6 +1,8 @@
 package Offline_1;
 
-public class UploadAcknowledge
+import java.io.Serializable;
+
+public class UploadAcknowledge implements Serializable
 {
     private boolean ok;
 
