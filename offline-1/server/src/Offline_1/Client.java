@@ -1,4 +1,4 @@
-package Offline_1.Client;
+package Offline_1;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -7,11 +7,12 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.Vector;
 
-import Offline_1.Server;
 import Offline_1.Requests.LoginRequest;
 import Offline_1.Requests.Request;
+import Offline_1.Requests.UsersListRequest;
 import Offline_1.Responses.LoginFailedResponse;
 import Offline_1.Responses.LoginSuccessfulResponse;
+import Offline_1.Responses.UsersListResponse;
 
 public class Client extends Thread
 {
@@ -44,8 +45,6 @@ public class Client extends Thread
     @Override
     public void run()
     {
-        super.run();
-
         while(running)
         {
             try
@@ -76,10 +75,25 @@ public class Client extends Thread
                         }
                         else
                         {   
-                            SetUserName(loginRequest.GetUserName());
+                            SetUserName(new String(loginRequest.GetUserName()));
                             loggedInClients.add(this);
-                            objectOutputStream.writeObject(new LoginSuccessfulResponse(userName));
+                            objectOutputStream.writeObject(new LoginSuccessfulResponse(new String(userName)));
                         }
+                    }
+                }
+                else if(request instanceof UsersListRequest)
+                {
+                    Vector<String> usersList = new Vector<>();
+                    Vector<Client> loggedInClients = Server.GetServer().GetLoggedInClients();
+
+                    synchronized(loggedInClients)
+                    {
+                        for(int i = 0; i < loggedInClients.size(); ++i)
+                        {
+                            usersList.add(loggedInClients.get(i).GetUserName());
+                        }
+
+                        objectOutputStream.writeObject(new UsersListResponse(usersList));
                     }
                 }
             }

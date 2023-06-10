@@ -1,15 +1,17 @@
-package Offline_1.Client;
+package Offline_1;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.Vector;
 
-import Offline_1.Commands;
 import Offline_1.Requests.LoginRequest;
+import Offline_1.Requests.UsersListRequest;
 import Offline_1.Responses.LoginSuccessfulResponse;
 import Offline_1.Responses.Response;
+import Offline_1.Responses.UsersListResponse;
 
 public class Client extends Thread
 {
@@ -42,7 +44,6 @@ public class Client extends Thread
     @Override
     public void run()
     {
-        super.run();
         System.out.println("Connected to server");
 
         while(running)
@@ -50,6 +51,7 @@ public class Client extends Thread
             try
             {
                 int available = System.in.available();
+                boolean waitForResponse = false;
 
                 if(available > 0)
                 {
@@ -66,6 +68,8 @@ public class Client extends Thread
                             if(tokenizedCommand.length > 1)
                             {
                                 objectOutputStream.writeObject(new LoginRequest(tokenizedCommand[1]));
+
+                                waitForResponse = true;
                             }
                             else
                             {
@@ -74,10 +78,26 @@ public class Client extends Thread
                         }
                         else
                         {
-                            System.err.println("Already logged in as " + GetUserName());
+                            System.out.println("Already logged in as " + GetUserName());
                         }
                     }
+                    else if(tokenizedCommand[0].equals(Commands.UsersList.TEXT))
+                    {
+                        if(GetUserName().length() > 0)
+                        {
+                            objectOutputStream.writeObject(new UsersListRequest());
 
+                            waitForResponse = true;
+                        }
+                        else
+                        {
+                            System.out.println("You need to log in to get access to this information");
+                        }
+                    }
+                }
+
+                if(waitForResponse)
+                {
                     Response response = (Response)objectInputStream.readObject();
 
                     if(response instanceof LoginSuccessfulResponse)
@@ -86,6 +106,18 @@ public class Client extends Thread
 
                         SetUserName(loginSuccessfulResponse.GetUserName());
                         System.out.println("Logged in as "+ loginSuccessfulResponse.GetUserName());
+                    }
+                    else if(response instanceof UsersListResponse)
+                    {
+                        UsersListResponse usersListResponse = (UsersListResponse)response;
+                        Vector<String> usersList = usersListResponse.GetUsersList();
+
+                        System.out.println("Lisiting users:");
+
+                        for(int i = 0; i < usersList.size(); ++i)
+                        {
+                            System.out.println((i + 1) + ". " + usersList.get(i));
+                        }
                     }
                 }
             }

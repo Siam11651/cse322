@@ -6,7 +6,7 @@ public class LoginRequest extends Request
 
     public LoginRequest(String userName)
     {
-        this.userName = userName;
+        this.userName = new String(userName);
     }
 
     public String GetUserName()

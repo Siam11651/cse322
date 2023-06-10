@@ -6,7 +6,7 @@ public class LoginSuccessfulResponse extends Response
 
     public LoginSuccessfulResponse(String userName)
     {
-        this.userName = userName;
+        this.userName = new String(userName);
     }
 
     public String GetUserName()

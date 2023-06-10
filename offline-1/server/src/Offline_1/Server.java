@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Vector;
 
-import Offline_1.Client.Client;
-
 public class Server extends Thread
 {
     final private int PORT = 6969;
@@ -36,8 +34,6 @@ public class Server extends Thread
     @Override
     public void run()
     {
-        super.run();
-
         while(running)
         {
             try
