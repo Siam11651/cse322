@@ -1,5 +1,7 @@
 package Offline_1;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -7,13 +9,19 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.Vector;
 
+import javax.swing.JTable.PrintMode;
+
+import Offline_1.Requests.FileRequest;
 import Offline_1.Requests.FilesListRequest;
 import Offline_1.Requests.LoginRequest;
+import Offline_1.Requests.MessagesRequest;
+import Offline_1.Requests.UploadRequest;
 import Offline_1.Requests.UsersListRequest;
 import Offline_1.Requests.FilesListRequest.Privacy;
 import Offline_1.Responses.FilesListResponse;
 import Offline_1.Responses.LoginResponse;
 import Offline_1.Responses.Response;
+import Offline_1.Responses.UploadRespone;
 import Offline_1.Responses.UsersListResponse;
 
 public class Client extends Thread
@@ -122,6 +130,160 @@ public class Client extends Thread
                             System.out.println("You need to log in to get access to this information");
                         }
                     }
+                    else if(tokenizedCommand[0].equals(Commands.MESSAGES))
+                    {
+                        if(IsLoggedIn())
+                        {
+                            int latestCount = 0;
+
+                            if(tokenizedCommand.length >= 2)
+                            {
+                                latestCount = Integer.parseInt(tokenizedCommand[1]);
+                            }
+
+                            objectOutputStream.writeObject(new MessagesRequest(latestCount));
+
+                            waitForResponse = true;
+                        }
+                        else
+                        {
+                            System.out.println("You need to log in to get access to this information");
+                        }
+                    }
+                    else if(tokenizedCommand[0].equals(Commands.FILE_REQUEST))
+                    {
+                        if(IsLoggedIn())
+                        {
+                            if(tokenizedCommand.length >= 3)
+                            {
+                                objectOutputStream.writeObject(new FileRequest(tokenizedCommand[1], tokenizedCommand[2]));
+                            }
+                            else
+                            {
+                                System.out.println("Not enough arguments for this command");
+                            }
+                        }
+                        else
+                        {
+                            System.out.println("You must be logged in to post this request");
+                        }
+                    }
+                    else if(tokenizedCommand[0].equals(Commands.UPLOAD))
+                    {
+                        if(IsLoggedIn())
+                        {
+                            String filePath = tokenizedCommand[1];
+                            String fileName = tokenizedCommand[2];
+                            String privacyString = tokenizedCommand[3];
+                            String requestId = tokenizedCommand[4];
+                            Privacy privacy = Privacy.ALL;
+                            File file = new File(filePath);
+                            boolean uploadRequestable = true;
+
+                            if(privacyString.equals(Commands.FilePrivacy.PUBLIC))
+                            {
+                                privacy = Privacy.PUBLIC;
+                            }
+                            else if(privacyString.equals(Commands.FilePrivacy.PRIVATE))
+                            {
+                                privacy = Privacy.PRIVATE;
+                            }
+                            else 
+                            {
+                                System.out.println("Invalid privacy argument");
+
+                                uploadRequestable = false;
+                            }
+
+                            if(!file.exists())
+                            {
+                                System.out.println("Path specified does not exist");
+
+                                uploadRequestable = false;
+                            }
+
+                            if(!file.isFile())
+                            {
+                                System.out.println("Path specified in not a file");
+
+                                uploadRequestable = false;
+                            }
+                            
+                            if(requestId.length() > 0 && privacy == Privacy.PRIVATE)
+                            {
+                                System.out.println("No request for private file");
+
+                                uploadRequestable = false;
+                            }
+
+                            if(uploadRequestable)
+                            {
+                                long fileSize = file.length();
+
+                                objectOutputStream.writeObject(new UploadRequest(fileName, fileSize, privacy, requestId));
+
+                                UploadRespone uploadRespone = (UploadRespone)objectInputStream.readObject();
+                                String fileId = uploadRespone.GetFileId();
+
+                                if(fileId.length() > 0)
+                                {
+                                    FileInputStream fileInputStream = new FileInputStream(file);
+                                    long chunkSize = uploadRespone.GetChunkSize();
+                                    long chunkCount = fileSize / chunkSize;
+                                    long lastChunkSize = fileSize % chunkSize;
+                                    UploadAcknowledge uploadAcknowledge = null;
+                                    long uploadedChunk = 0;
+                                    
+                                    for(long i = 0; i < chunkCount;  ++i)
+                                    {
+                                        byte chunk[] = new byte[(int)chunkSize];
+
+                                        fileInputStream.read(chunk);
+
+                                        objectOutputStream.writeObject(new UploadData(fileId, chunk));
+                                        uploadAcknowledge = (UploadAcknowledge)objectInputStream.readObject();
+
+                                        if(uploadAcknowledge.IsOk())
+                                        {
+                                            uploadedChunk += chunkSize;
+
+                                            System.out.println("Uploaded " + ((chunkSize / fileSize) * 100) + "% of file");
+                                        }
+                                        else
+                                        {
+                                            
+                                        }
+                                    }
+
+                                    if(uploadAcknowledge.IsOk() && lastChunkSize > 0)
+                                    {
+                                        byte chunk[] = new byte[(int)lastChunkSize];
+
+                                        fileInputStream.read(chunk);
+
+                                        objectOutputStream.writeObject(new UploadData(fileId, chunk));
+                                        uploadAcknowledge = (UploadAcknowledge)objectInputStream.readObject();
+                                    }
+
+                                    if(uploadAcknowledge.IsOk())
+                                    {
+                                        System.out.println("Uploaded " + ((chunkSize / fileSize) * 100) + "% of file");
+                                        objectOutputStream.writeObject(new UploadComplete());
+                                        objectInputStream.readObject();
+                                        System.out.println("Upload completed successfully");
+                                    }
+                                }
+                                else
+                                {
+                                    System.out.println("Server cannot keep any more file");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            System.out.println("You must be logged in to post this request");
+                        }
+                    }
                 }
 
                 if(waitForResponse)
@@ -205,16 +367,16 @@ public class Client extends Thread
     {
         Privacy privacyEnum;
 
-        if(privacy.equals(Commands.FilesListArguments.PUBLIC))
+        if(privacy.equals(Commands.FilePrivacy.PUBLIC))
         {
             privacyEnum = Privacy.PUBLIC;
 
         }
-        else if(privacy.equals(Commands.FilesListArguments.ALL))
+        else if(privacy.equals(Commands.FilePrivacy.ALL))
         {
             privacyEnum = Privacy.ALL;
         }
-        else if(privacy.equals(Commands.FilesListArguments.PRIVATE))
+        else if(privacy.equals(Commands.FilePrivacy.PRIVATE))
         {
             privacyEnum = Privacy.PRIVATE;
         }
