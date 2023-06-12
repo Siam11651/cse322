@@ -241,7 +241,6 @@ public class Client extends Thread
                                     long lastChunkSize = fileSize % chunkSize;
                                     UploadAcknowledge uploadAcknowledge = null;
                                     long uploadedSize = 0;
-                                    boolean useLastChunk = true;
                                     
                                     for(long i = 0; i < chunkCount;  ++i)
                                     {
@@ -260,8 +259,6 @@ public class Client extends Thread
                                         }
                                         else
                                         {
-                                            useLastChunk = false;
-
                                             break;
                                         }
                                     }
