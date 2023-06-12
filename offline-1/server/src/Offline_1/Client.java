@@ -12,6 +12,7 @@ import java.util.Hashtable;
 import java.util.Random;
 import java.util.Vector;
 
+import Offline_1.Requests.DownloadRequest;
 import Offline_1.Requests.FileRequest;
 import Offline_1.Requests.FilesListRequest;
 import Offline_1.Requests.LoginRequest;
@@ -328,6 +329,71 @@ public class Client extends Thread
                     else
                     {
                         objectOutputStream.writeObject(new UploadRespone("", chunkSize));
+                    }
+                }
+                else if(request instanceof DownloadRequest)
+                {
+                    DownloadRequest downloadRequest = (DownloadRequest)request;
+                    String fileName = downloadRequest.GetFileName();
+                    String userName = downloadRequest.GetUserName();
+                    File file;
+
+                    if(userName.equals(GetUserName()) && downloadRequest.GetPrivacy() == Privacy.PRIVATE)
+                    {
+                        file = new File("root/" + userName + "/private/" + fileName);
+                    }
+                    else
+                    {
+                        file = new File("root/" + userName + "/public/" + fileName);
+                    }
+
+                    if(file.exists())
+                    {
+                        FileInputStream fileInputStream = new FileInputStream(file);
+                        Random random = new Random();
+                        long nextLong = random.nextLong() % (Server.MAX_CHUNK_SIZE - Server.MIN_CHUNK_SIZE);
+                        long chunkSize = Server.MIN_CHUNK_SIZE + nextLong;
+                        long chunkCount = file.length() / chunkSize;
+                        long lastChunkSize = file.length() % chunkSize;
+
+                        for(int i = 0; i < chunkCount; ++i)
+                        {
+                            byte chunk[] = new byte[(int)chunkSize];
+
+                            fileInputStream.read(chunk);
+
+                            if(lastChunkSize == 0 && i == chunkCount - 1)
+                            {
+                                objectOutputStream.writeObject(new DownloadData(true, true, chunk, file.length()));
+                            }
+                            else
+                            {
+                                objectOutputStream.writeObject(new DownloadData(false, true, chunk, file.length()));
+                            }
+
+                            DownloadAcknowledge downloadAcknowledge = (DownloadAcknowledge)objectInputStream.readObject();
+
+                            if(!downloadAcknowledge.IsOK())
+                            {
+                                lastChunkSize = 0;
+
+                                break;
+                            }
+                        }
+
+                        if(lastChunkSize > 0)
+                        {
+                            byte chunk[] = new byte[(int)lastChunkSize];
+
+                            fileInputStream.read(chunk);
+                            objectOutputStream.writeObject(new DownloadData(true, true, chunk, file.length()));
+                        }
+
+                        fileInputStream.close();
+                    }
+                    else
+                    {
+                        objectOutputStream.writeObject(new DownloadData(false, false, null, 0));
                     }
                 }
             }

@@ -8,6 +8,7 @@ public class Commands
     final public static String FILE_REQUEST = "file-request";
     final public static String MESSAGES = "messages";
     final public static String UPLOAD = "upload";
+    final public static String DOWNLOAD = "download";
 
     public class FilesListArguments
     {

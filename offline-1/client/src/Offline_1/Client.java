@@ -2,6 +2,7 @@ package Offline_1;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -11,6 +12,7 @@ import java.util.Vector;
 
 import javax.swing.JTable.PrintMode;
 
+import Offline_1.Requests.DownloadRequest;
 import Offline_1.Requests.FileRequest;
 import Offline_1.Requests.FilesListRequest;
 import Offline_1.Requests.LoginRequest;
@@ -297,6 +299,75 @@ public class Client extends Thread
                         else
                         {
                             System.out.println("You must be logged in to post this request");
+                        }
+                    }
+                    else if(tokenizedCommand[0].equals(Commands.DOWNLOAD))
+                    {
+                        if(IsLoggedIn())
+                        {
+                            String userName = tokenizedCommand[1];
+                            String fileName = tokenizedCommand[2];
+                            String downloadDestination = tokenizedCommand[3];
+                            String privacyString = "";
+                            Privacy privacy = Privacy.PUBLIC;
+
+                            if(tokenizedCommand.length > 4)
+                            {
+                                privacyString = tokenizedCommand[4];
+
+                                if(privacyString.equals(Commands.FilePrivacy.PUBLIC))
+                                {
+                                    privacy = Privacy.PUBLIC;
+                                }
+                                else if(privacyString.equals(Commands.FilePrivacy.PRIVATE))
+                                {
+                                    privacy = Privacy.PRIVATE;
+                                }
+                            }
+
+                            objectOutputStream.writeObject(new DownloadRequest(userName, fileName, privacy));
+                            DownloadData downloadData = (DownloadData)objectInputStream.readObject();
+                            File file = new File(downloadDestination);
+
+                            file.createNewFile();
+
+                            FileOutputStream fileOutputStream = new FileOutputStream(file);
+                            boolean successful = true;
+
+                            while(true)
+                            {
+                                if(downloadData.IsOk())
+                                {
+                                    fileOutputStream.write(downloadData.GetChunk());
+
+                                    System.out.println("Downloaded " + (file.length() * 100) / downloadData.GetTotalSize() + "%");
+
+                                    if(downloadData.IsLastChunk())
+                                    {
+                                        break;
+                                    }
+                                    
+                                    objectOutputStream.writeObject(new DownloadAcknowledge(true));
+                                    downloadData = (DownloadData)objectInputStream.readObject();
+                                }
+                                else
+                                {
+                                    System.out.println("Cannot download");
+
+                                    successful = false;
+                                }
+                            }
+
+                            fileOutputStream.close();
+
+                            if(!successful)
+                            {
+                                file.delete();
+                            }
+                        }
+                        else
+                        {
+                            System.out.println("You must be logged in to download a file");
                         }
                     }
                 }
