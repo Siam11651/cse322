@@ -11,7 +11,7 @@ public class Server extends Thread
 {
     final public static long MAX_BUFFER_SIZE = 1000000000; // 1 GB 🤡
     final public static long MIN_CHUNK_SIZE = 1000;
-    final public static long MAX_CHUNK_SIZE = 5000;
+    final public static long MAX_CHUNK_SIZE = 1000000;
     final public static int PORT = 6969;
     private boolean running;
     private static Server server;
