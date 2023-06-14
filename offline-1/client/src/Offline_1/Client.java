@@ -8,9 +8,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.util.Vector;
-
-import javax.swing.JTable.PrintMode;
 
 import Offline_1.Requests.DownloadRequest;
 import Offline_1.Requests.FileRequest;
@@ -22,7 +21,7 @@ import Offline_1.Requests.UsersListRequest;
 import Offline_1.Requests.FilesListRequest.Privacy;
 import Offline_1.Responses.FilesListResponse;
 import Offline_1.Responses.LoginResponse;
-import Offline_1.Responses.Response;
+import Offline_1.Responses.MessagesResponse;
 import Offline_1.Responses.UploadRespone;
 import Offline_1.Responses.UsersListResponse;
 
@@ -45,6 +44,7 @@ public class Client extends Thread
             objectInputStream = new ObjectInputStream(socket.getInputStream());
             objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
 
+            socket.setSoTimeout(30000);
             start();
         }
         catch(IOException exception)
@@ -58,13 +58,13 @@ public class Client extends Thread
     public void run()
     {
         System.out.println("Connected to server");
+        System.out.print("> ");
 
         while(running)
         {
             try
             {
                 int available = System.in.available();
-                boolean waitForResponse = false;
 
                 if(available > 0)
                 {
@@ -86,7 +86,17 @@ public class Client extends Thread
                             {
                                 objectOutputStream.writeObject(new LoginRequest(tokenizedCommand[1]));
 
-                                waitForResponse = true;
+                                LoginResponse loginResponse = (LoginResponse)objectInputStream.readObject();
+
+                                if(loginResponse.IsSuccessful())
+                                {
+                                    SetUserName(loginResponse.GetUserName());
+                                    System.out.println("Logged in as "+ loginResponse.GetUserName());
+                                }
+                                else
+                                {
+                                    System.out.println("Login failed");
+                                }
                             }
                             else
                             {
@@ -100,7 +110,15 @@ public class Client extends Thread
                         {
                             objectOutputStream.writeObject(new UsersListRequest());
 
-                            waitForResponse = true;
+                            UsersListResponse usersListResponse = (UsersListResponse)objectInputStream.readObject();
+                            Vector<String> usersList = usersListResponse.GetUsersList();
+
+                            System.out.println("Lisiting users:");
+
+                            for(int i = 0; i < usersList.size(); ++i)
+                            {
+                                System.out.println((i + 1) + ". " + usersList.get(i));
+                            }
                         }
                         else
                         {
@@ -111,15 +129,58 @@ public class Client extends Thread
                     {
                         if(IsLoggedIn())
                         {
-                            if(tokenizedCommand.length >= 3)
+                            if(tokenizedCommand.length > 1)
                             {
-                                if(tokenizedCommand[1].equals(Commands.FilesListArguments.OWN))
+                                Privacy privacyEnum = Privacy.PRIVATE;
+
+                                if(tokenizedCommand.length > 2)
                                 {
-                                    waitForResponse = HandleFilesListOnPrivacy(userName, tokenizedCommand[2]);
+                                    if(tokenizedCommand[3].equals(Commands.FilePrivacy.PUBLIC))
+                                    {
+                                        privacyEnum = Privacy.PUBLIC;
+
+                                    }
+                                    else if(tokenizedCommand[3].equals(Commands.FilePrivacy.ALL))
+                                    {
+                                        privacyEnum = Privacy.ALL;
+                                    }
+                                    else if(tokenizedCommand[3].equals(Commands.FilePrivacy.PRIVATE))
+                                    {
+                                        privacyEnum = Privacy.PRIVATE;
+                                    }
+                                }
+
+                                if(!tokenizedCommand[2].equals(userName) && (privacyEnum == Privacy.PRIVATE || privacyEnum == Privacy.ALL))
+                                {
+                                    System.out.println("Only owner can get access to private files");
                                 }
                                 else
                                 {
-                                    waitForResponse = HandleFilesListOnPrivacy(tokenizedCommand[1], tokenizedCommand[2]);
+                                    objectOutputStream.writeObject(new FilesListRequest(userName, privacyEnum));
+
+                                    FilesListResponse filesListResponse = (FilesListResponse)objectInputStream.readObject();
+                                    Vector<String> publicFiles = filesListResponse.GetPublicFilesList();
+                                    Vector<String> privateFiles = filesListResponse.GetPrivateFilesList();
+
+                                    if(publicFiles != null)
+                                    {
+                                        System.out.println("Lisiting public files:");
+
+                                        for(int i = 0; i < publicFiles.size(); ++i)
+                                        {
+                                            System.out.println((i + 1) + ". " + publicFiles.get(i));
+                                        }
+                                    }
+
+                                    if(privateFiles != null)
+                                    {
+                                        System.out.println("Lisiting private files:");
+
+                                        for(int i = 0; i < privateFiles.size(); ++i)
+                                        {
+                                            System.out.println((i + 1) + ". " + privateFiles.get(i));
+                                        }
+                                    }
                                 }
                             }
                             else
@@ -145,7 +206,23 @@ public class Client extends Thread
 
                             objectOutputStream.writeObject(new MessagesRequest(latestCount));
 
-                            waitForResponse = true;
+                            MessagesResponse messagesResponse = (MessagesResponse)objectInputStream.readObject();
+                            Vector<Message> messages = messagesResponse.GetMessageList();
+
+                            if(messages.size() == 0)
+                            {
+                                System.out.println("No messages to show");
+                            }
+                            else
+                            {
+                                System.out.println("Messages:");
+
+                                for(int i = 0; i < messages.size(); ++i)
+                                {
+                                    System.out.println((i + 1) + ".");
+                                    System.out.println(messages.get(i).GetContent());
+                                }
+                            }
                         }
                         else
                         {
@@ -255,7 +332,7 @@ public class Client extends Thread
                                         {
                                             uploadedSize += chunkSize;
 
-                                            System.out.println("Uploaded " + ((uploadedSize / fileSize) * 100) + "% of file");
+                                            System.out.println("Uploaded " + ((uploadedSize * 100) / fileSize) + "% of file");
                                         }
                                         else
                                         {
@@ -271,13 +348,14 @@ public class Client extends Thread
 
                                         objectOutputStream.writeObject(new UploadData(fileId, chunk));
                                         uploadAcknowledge = (UploadAcknowledge)objectInputStream.readObject();
+                                        uploadedSize += lastChunkSize;
                                     }
 
                                     fileInputStream.close();
 
                                     if(uploadAcknowledge != null && uploadAcknowledge.IsOk())
                                     {
-                                        System.out.println("Uploaded " + ((uploadedSize / fileSize) * 100) + "% of file");
+                                        System.out.println("Uploaded " + ((uploadedSize * 100) / fileSize) + "% of file");
                                         objectOutputStream.writeObject(new UploadComplete());
                                         objectInputStream.readObject();
                                         System.out.println("Upload completed successfully");
@@ -367,63 +445,14 @@ public class Client extends Thread
                             System.out.println("You must be logged in to download a file");
                         }
                     }
-                }
 
-                if(waitForResponse)
-                {
-                    Response response = (Response)objectInputStream.readObject();
-
-                    if(response instanceof LoginResponse)
+                    if(IsLoggedIn())
                     {
-                        LoginResponse loginResponse = (LoginResponse)response;
-
-                        if(loginResponse.IsSuccessful())
-                        {
-                            SetUserName(loginResponse.GetUserName());
-                            System.out.println("Logged in as "+ loginResponse.GetUserName());
-                        }
-                        else
-                        {
-                            System.out.println("Login failed");
-                        }
+                        System.out.print(userName + " > ");
                     }
-                    else if(response instanceof UsersListResponse)
+                    else
                     {
-                        UsersListResponse usersListResponse = (UsersListResponse)response;
-                        Vector<String> usersList = usersListResponse.GetUsersList();
-
-                        System.out.println("Lisiting users:");
-
-                        for(int i = 0; i < usersList.size(); ++i)
-                        {
-                            System.out.println((i + 1) + ". " + usersList.get(i));
-                        }
-                    }
-                    else if(response instanceof FilesListResponse)
-                    {
-                        FilesListResponse filesListResponse = (FilesListResponse)response;
-                        Vector<String> publicFiles = filesListResponse.GetPublicFilesList();
-                        Vector<String> privateFiles = filesListResponse.GetPrivateFilesList();
-
-                        if(publicFiles != null)
-                        {
-                            System.out.println("Lisiting public files:");
-
-                            for(int i = 0; i < publicFiles.size(); ++i)
-                            {
-                                System.out.println((i + 1) + ". " + publicFiles.get(i));
-                            }
-                        }
-
-                        if(privateFiles != null)
-                        {
-                            System.out.println("Lisiting private files:");
-
-                            for(int i = 0; i < privateFiles.size(); ++i)
-                            {
-                                System.out.println((i + 1) + ". " + privateFiles.get(i));
-                            }
-                        }
+                        System.out.print("> ");
                     }
                 }
             }
@@ -444,51 +473,6 @@ public class Client extends Thread
                 exception.printStackTrace();
             }
         }
-    }
-
-    private boolean HandleFilesListOnPrivacy(String userName, String privacy) throws IOException
-    {
-        Privacy privacyEnum;
-
-        if(privacy.equals(Commands.FilePrivacy.PUBLIC))
-        {
-            privacyEnum = Privacy.PUBLIC;
-
-        }
-        else if(privacy.equals(Commands.FilePrivacy.ALL))
-        {
-            privacyEnum = Privacy.ALL;
-        }
-        else if(privacy.equals(Commands.FilePrivacy.PRIVATE))
-        {
-            privacyEnum = Privacy.PRIVATE;
-        }
-        else
-        {
-            System.out.println("Invalid privacy option");
-
-            return false;
-        }
-
-        if(privacyEnum == Privacy.PUBLIC)
-        {
-            objectOutputStream.writeObject(new FilesListRequest(userName, Privacy.PUBLIC));
-        }
-        else
-        {
-            if(userName.equals(this.userName))
-            {
-                objectOutputStream.writeObject(new FilesListRequest(userName, privacyEnum));
-            }
-            else
-            {
-                System.out.println("Cannot access private files of other users");
-
-                return false;
-            }
-        }
-
-        return true;
     }
 
     public synchronized void SetUserName(String userName)

@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.Hashtable;
 import java.util.Random;
 import java.util.Vector;
@@ -23,6 +24,7 @@ import Offline_1.Requests.UsersListRequest;
 import Offline_1.Requests.FilesListRequest.Privacy;
 import Offline_1.Responses.FilesListResponse;
 import Offline_1.Responses.LoginResponse;
+import Offline_1.Responses.MessagesResponse;
 import Offline_1.Responses.UploadRespone;
 import Offline_1.Responses.UsersListResponse;
 
@@ -140,39 +142,32 @@ public class Client extends Thread
                 }
                 else if(request instanceof FilesListRequest)
                 {
-                    if(IsLoggedIn())
+                    FilesListRequest filesListRequest = (FilesListRequest)request;
+                    String requestUserName = filesListRequest.GetUserName();
+                    Privacy privacy = filesListRequest.GetPrivacy();
+
+                    if(privacy == Privacy.PUBLIC)
                     {
-                        FilesListRequest filesListRequest = (FilesListRequest)request;
-                        String requestUserName = filesListRequest.GetUserName();
-                        Privacy privacy = filesListRequest.GetPrivacy();
+                        Vector<File> publicFiles = Server.GetServer().GetPublicFilesList(requestUserName);
 
-                        if(privacy == Privacy.PUBLIC)
-                        {
-                            Vector<File> publicFiles = Server.GetServer().GetPublicFilesList(requestUserName);
-
-                            objectOutputStream.writeObject(new FilesListResponse(null, publicFiles));
-                        }
-                        else
-                        {
-                            Vector<File> privateFiles = null;
-                            Vector<File> publicFiles = null;
-
-                            if(requestUserName.equals(userName))
-                            {
-                                privateFiles = Server.GetServer().GetPrivateFilesList(requestUserName);
-
-                                if(privacy == Privacy.ALL)
-                                {
-                                    publicFiles = Server.GetServer().GetPublicFilesList(requestUserName);
-                                }
-                            }
-
-                            objectOutputStream.writeObject(new FilesListResponse(privateFiles, publicFiles));
-                        }
+                        objectOutputStream.writeObject(new FilesListResponse(null, publicFiles));
                     }
                     else
                     {
+                        Vector<File> privateFiles = null;
+                        Vector<File> publicFiles = null;
 
+                        if(requestUserName.equals(userName))
+                        {
+                            privateFiles = Server.GetServer().GetPrivateFilesList(requestUserName);
+
+                            if(privacy == Privacy.ALL)
+                            {
+                                publicFiles = Server.GetServer().GetPublicFilesList(requestUserName);
+                            }
+                        }
+
+                        objectOutputStream.writeObject(new FilesListResponse(privateFiles, publicFiles));
                     }
                 }
                 else if(request instanceof MessagesRequest)
@@ -191,6 +186,11 @@ public class Client extends Thread
 
                     Vector<Message> latestMessages = new Vector<>();
 
+                    if(latestCount == 0)
+                    {
+                        latestCount = messageList.size();
+                    }
+
                     for(int i = messageList.size() - 1; i >= messageList.size() - latestCount; --i)
                     {
                         latestMessages.add(messageList.get(i));
@@ -198,6 +198,7 @@ public class Client extends Thread
 
                     messagesObjectInputStream.close();
                     fileInputStream.close();
+                    objectOutputStream.writeObject(new MessagesResponse(latestMessages));
                 }
                 else if(request instanceof FileRequest)
                 {
@@ -279,8 +280,10 @@ public class Client extends Thread
                         {
                             file = new File("root/" + userName + "/public", uploadRequest.GetFileName());
                         }
-
+                        
+                        file.delete();
                         file.createNewFile();
+                        socket.setSoTimeout(30000);
 
                         FileOutputStream fileOutputStream = new FileOutputStream(file);
 
@@ -304,8 +307,6 @@ public class Client extends Thread
 
                             objectInputStream.readObject();
 
-                            fileOutputStream.close();
-
                             if(file.length() == fileSize)
                             {
                                 objectOutputStream.writeObject(new UploadSuccess());
@@ -317,9 +318,16 @@ public class Client extends Thread
                         }
                         catch(IOException exception)
                         {
-                            fileOutputStream.close();
-                            file.delete();
+                            if(exception instanceof SocketTimeoutException)
+                            {
+                                file.delete();
+                            }
+
+                            exception.printStackTrace();
                         }
+
+                        socket.setSoTimeout(0);
+                        fileOutputStream.close();
 
                         synchronized(uploadTracker)
                         {
