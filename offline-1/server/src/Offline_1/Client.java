@@ -322,6 +322,8 @@ public class Client extends Thread
                             }
                             catch(IOException exception)
                             {
+                                socket.setSoTimeout(0);
+                                fileOutputStream.close();
                                 file.delete();
                                 
                                 throw exception;
@@ -339,6 +341,8 @@ public class Client extends Thread
                             }
                             catch(IOException exception)
                             {
+                                socket.setSoTimeout(0);
+                                fileOutputStream.close();
                                 file.delete();
                                 
                                 throw exception;
@@ -346,6 +350,7 @@ public class Client extends Thread
                         }
 
                         objectInputStream.readObject();
+                        fileOutputStream.close();
 
                         if(file.length() == fileSize)
                         {
@@ -357,7 +362,6 @@ public class Client extends Thread
                         }
 
                         socket.setSoTimeout(0);
-                        fileOutputStream.close();
                     }
                     else
                     {
