@@ -14,15 +14,18 @@ import Offline_1.Requests.DownloadRequest;
 import Offline_1.Requests.FileRequest;
 import Offline_1.Requests.FilesListRequest;
 import Offline_1.Requests.LoginRequest;
+import Offline_1.Requests.LogoutRequest;
 import Offline_1.Requests.MessagesRequest;
 import Offline_1.Requests.UploadRequest;
 import Offline_1.Requests.UsersListRequest;
 import Offline_1.Requests.FilesListRequest.Privacy;
 import Offline_1.Responses.FilesListResponse;
 import Offline_1.Responses.LoginResponse;
+import Offline_1.Responses.LogoutResponse;
 import Offline_1.Responses.MessagesResponse;
 import Offline_1.Responses.UploadRespone;
-import Offline_1.Responses.UsersListResponse;
+import Offline_1.Responses.UsersListResponse.UserActivityPair;
+import Offline_1.Responses.UsersListResponse.UsersListResponse;
 
 public class Client extends Thread
 {
@@ -110,13 +113,21 @@ public class Client extends Thread
                             objectOutputStream.writeObject(new UsersListRequest());
 
                             UsersListResponse usersListResponse = (UsersListResponse)objectInputStream.readObject();
-                            Vector<String> usersList = usersListResponse.GetUsersList();
+                            Vector<UserActivityPair> usersList = usersListResponse.GetUsersList();
 
                             System.out.println("Lisiting users:");
 
                             for(int i = 0; i < usersList.size(); ++i)
                             {
-                                System.out.println((i + 1) + ". " + usersList.get(i));
+                                UserActivityPair userActivityPair = usersList.get(i);
+                                String activity = "inactive";
+
+                                if(userActivityPair.IsActive())
+                                {
+                                    activity = "active";
+                                }
+
+                                System.out.println((i + 1) + ". " + userActivityPair.GetUsername() + " (" + activity + ")");
                             }
                         }
                         else
@@ -442,6 +453,22 @@ public class Client extends Thread
                         else
                         {
                             System.out.println("You must be logged in to download a file");
+                        }
+                    }
+                    else if(tokenizedCommand[0].equals(Commands.LOGOUT))
+                    {
+                        if(IsLoggedIn())
+                        {
+                            objectOutputStream.writeObject(new LogoutRequest());
+                            objectInputStream.readObject();
+                            System.out.println("Logging out");
+                            Close();
+
+                            userName = "";
+                        }
+                        else
+                        {
+                            System.out.println("You must be logged in to logout");
                         }
                     }
 

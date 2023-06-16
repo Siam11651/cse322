@@ -16,16 +16,14 @@ public class Server extends Thread
     private boolean running;
     private static Server server;
     private ServerSocket serverSocket;
-    private Vector<Client> loggedInClients;
+    private Hashtable<String, Client> loggedInClients;
     private Hashtable<String, String> fileRequests;
-    private Hashtable<String, String> uploadTracker;
 
     private Server()
     {
         running = true;
-        loggedInClients = new Vector<>();
+        loggedInClients = new Hashtable<>();
         fileRequests = new Hashtable<>();
-        uploadTracker = new Hashtable<>();
 
         try
         {
@@ -91,11 +89,6 @@ public class Server extends Thread
         }
     }
 
-    public synchronized Hashtable<String, String> GetUploadTracker()
-    {
-        return uploadTracker;
-    }
-
     public synchronized static Server GetServer()
     {
         if(server == null)
@@ -106,7 +99,7 @@ public class Server extends Thread
         return server;
     }
 
-    public synchronized Vector<Client> GetLoggedInClients()
+    public synchronized Hashtable<String, Client> GetLoggedInClients()
     {
         return loggedInClients;
     }

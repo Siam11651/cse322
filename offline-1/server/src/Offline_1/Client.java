@@ -10,6 +10,7 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.Random;
 import java.util.Vector;
 
@@ -17,6 +18,7 @@ import Offline_1.Requests.DownloadRequest;
 import Offline_1.Requests.FileRequest;
 import Offline_1.Requests.FilesListRequest;
 import Offline_1.Requests.LoginRequest;
+import Offline_1.Requests.LogoutRequest;
 import Offline_1.Requests.MessagesRequest;
 import Offline_1.Requests.Request;
 import Offline_1.Requests.UploadRequest;
@@ -24,9 +26,11 @@ import Offline_1.Requests.UsersListRequest;
 import Offline_1.Requests.FilesListRequest.Privacy;
 import Offline_1.Responses.FilesListResponse;
 import Offline_1.Responses.LoginResponse;
+import Offline_1.Responses.LogoutResponse;
 import Offline_1.Responses.MessagesResponse;
 import Offline_1.Responses.UploadRespone;
-import Offline_1.Responses.UsersListResponse;
+import Offline_1.Responses.UsersListResponse.UserActivityPair;
+import Offline_1.Responses.UsersListResponse.UsersListResponse;
 
 public class Client extends Thread
 {
@@ -68,30 +72,23 @@ public class Client extends Thread
                 if(request instanceof LoginRequest)
                 {
                     LoginRequest loginRequest = (LoginRequest)request;
-                    Vector<Client> loggedInClients = Server.GetServer().GetLoggedInClients();
-                    boolean successful = true;
+                    Hashtable<String, Client> loggedInClients = Server.GetServer().GetLoggedInClients();
+                    boolean successful;
+                    String newUsername = loginRequest.GetUserName();
 
                     synchronized(loggedInClients)
                     {
-                        for(int i = 0; i < loggedInClients.size(); ++i)
-                        {
-                            if(loggedInClients.get(i).GetUserName().equals(userName))
-                            {
-                                successful = false;
-
-                                break;
-                            }
-                        }
+                        successful = !loggedInClients.containsKey(newUsername);
 
                         if(successful)
                         {
-                            loggedInClients.add(this);
+                            loggedInClients.put(newUsername, this);
                         }
                     }
 
                     if(successful)
                     {
-                        SetUserName(loginRequest.GetUserName());
+                        SetUserName(newUsername);
 
                         File userRoot = new File("root", userName);
                         File userPrivate = new File(userRoot, "private");
@@ -127,18 +124,25 @@ public class Client extends Thread
                 }
                 else if(request instanceof UsersListRequest)
                 {
-                    Vector<String> usersList = new Vector<>();
-                    Vector<Client> loggedInClients = Server.GetServer().GetLoggedInClients();
+                    Vector<UserActivityPair> usersList = new Vector<>();
+                    Hashtable<String, Client> loggedInClients = Server.GetServer().GetLoggedInClients();
+                    File file = new File("root");
+                    File userDirectories[] = file.listFiles();
 
-                    synchronized(loggedInClients)
+                    for(int i = 0; i < userDirectories.length; ++i)
                     {
-                        for(int i = 0; i < loggedInClients.size(); ++i)
+                        String directoryName = userDirectories[i].getName();
+                        boolean active;
+
+                        synchronized(loggedInClients)
                         {
-                            usersList.add(loggedInClients.get(i).GetUserName());
+                            active = loggedInClients.containsKey(directoryName);
                         }
 
-                        objectOutputStream.writeObject(new UsersListResponse(usersList));
+                        usersList.add(new UserActivityPair(directoryName, active));;
                     }
+
+                    objectOutputStream.writeObject(new UsersListResponse(usersList));
                 }
                 else if(request instanceof FilesListRequest)
                 {
@@ -210,36 +214,41 @@ public class Client extends Thread
                         fileRequests.put(fileRequest.GetRequestId(), fileRequest.GetDescription());
                     }
 
-                    Vector<Client> loggedInClients = Server.GetServer().GetLoggedInClients();
+                    Hashtable<String, Client> loggedInClients = Server.GetServer().GetLoggedInClients();
+                    Iterator<Client> clients;
                     
                     synchronized(loggedInClients)
                     {
-                        for(int i = 0; i < loggedInClients.size(); ++i)
+                        clients = loggedInClients.elements().asIterator();
+                    }
+
+                    while(clients.hasNext())
+                    {
+                        Client client = clients.next();
+
+                        if(!client.GetUserName().equals(GetUserName()))
                         {
-                            if(!loggedInClients.get(i).GetUserName().equals(GetUserName()))
-                            {
-                                String loggedInUserName = loggedInClients.get(i).GetUserName();
-                                File messageListFile = new File("root/" + loggedInUserName + "/inbox");
-                                FileInputStream messageListFileInputStream = new FileInputStream(messageListFile);
-                                ObjectInputStream messageListObjectInputStream = new ObjectInputStream(messageListFileInputStream);
-                                MessageList messageList = (MessageList)messageListObjectInputStream.readObject();
+                            String loggedInUserName = client.GetUserName();
+                            File messageListFile = new File("root/" + loggedInUserName + "/inbox");
+                            FileInputStream messageListFileInputStream = new FileInputStream(messageListFile);
+                            ObjectInputStream messageListObjectInputStream = new ObjectInputStream(messageListFileInputStream);
+                            MessageList messageList = (MessageList)messageListObjectInputStream.readObject();
 
-                                messageListObjectInputStream.close();
-                                messageListFileInputStream.close();
+                            messageListObjectInputStream.close();
+                            messageListFileInputStream.close();
 
-                                String messageText = "New file request from " + GetUserName() + "\n";
-                                messageText += "Request ID: " + fileRequest.GetRequestId() + "\n";
-                                messageText += "Description: " + fileRequest.GetDescription() + "\n";
+                            String messageText = "New file request from " + GetUserName() + "\n";
+                            messageText += "Request ID: " + fileRequest.GetRequestId() + "\n";
+                            messageText += "Description: " + fileRequest.GetDescription() + "\n";
 
-                                messageList.add(new Message("", messageText));
+                            messageList.add(new Message("", messageText));
 
-                                FileOutputStream messageListFileOutputStream = new FileOutputStream(messageListFile);
-                                ObjectOutputStream messageListObjectOutputStream = new ObjectOutputStream(messageListFileOutputStream);
+                            FileOutputStream messageListFileOutputStream = new FileOutputStream(messageListFile);
+                            ObjectOutputStream messageListObjectOutputStream = new ObjectOutputStream(messageListFileOutputStream);
 
-                                messageListObjectOutputStream.writeObject(messageList);
-                                messageListObjectOutputStream.close();
-                                messageListFileOutputStream.close();
-                            }
+                            messageListObjectOutputStream.writeObject(messageList);
+                            messageListObjectOutputStream.close();
+                            messageListFileOutputStream.close();
                         }
                     }
                 }
@@ -258,13 +267,6 @@ public class Client extends Thread
 
                     if(chunkSize > 0)
                     {
-                        Hashtable<String, String> uploadTracker = Server.GetServer().GetUploadTracker();
-
-                        synchronized(uploadTracker)
-                        {
-                            uploadTracker.put(userName, uploadRequest.GetFileName());
-                        }
-
                         objectOutputStream.writeObject(new UploadRespone(userName, chunkSize));
 
                         long chunkCount = fileSize / chunkSize;
@@ -328,11 +330,6 @@ public class Client extends Thread
 
                         socket.setSoTimeout(0);
                         fileOutputStream.close();
-
-                        synchronized(uploadTracker)
-                        {
-                            uploadTracker.remove(userName);
-                        }
                     }
                     else
                     {
@@ -404,6 +401,11 @@ public class Client extends Thread
                         objectOutputStream.writeObject(new DownloadData(false, false, null, 0));
                     }
                 }
+                else if(request instanceof LogoutRequest)
+                {
+                    Logout();
+                    objectOutputStream.writeObject(new LogoutResponse());
+                }
             }
             catch(IOException exception)
             {
@@ -450,6 +452,20 @@ public class Client extends Thread
         }
     }
 
+    public synchronized void Logout()
+    {
+        System.out.println("User " + userName + " attempting to logout");
+
+        Hashtable<String, Client> loggedInClients = Server.GetServer().GetLoggedInClients();
+
+        synchronized(loggedInClients)
+        {
+            loggedInClients.remove(userName);
+
+            userName = "";
+        }
+    }
+
     public synchronized void Stop()
     {
         running = false;
@@ -457,6 +473,7 @@ public class Client extends Thread
 
     public synchronized void Close()
     {
+        Logout();
         Stop();
         
         try

@@ -9,6 +9,7 @@ public class Commands
     final public static String MESSAGES = "messages";
     final public static String UPLOAD = "upload";
     final public static String DOWNLOAD = "download";
+    final public static String LOGOUT = "logout";
 
     public class FilesListArguments
     {
