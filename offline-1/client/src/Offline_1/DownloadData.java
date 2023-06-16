@@ -14,11 +14,15 @@ public class DownloadData implements Serializable
         this.lastChunk = lastChunk;
         this.ok = ok;
         this.totalSize = totalSize;
-        this.chunk = new byte[chunk.length];
 
-        for(int i = 0; i < chunk.length; ++i)
+        if(chunk != null)
         {
-            this.chunk[i] = chunk[i];
+            this.chunk = new byte[chunk.length];
+
+            for(int i = 0; i < chunk.length; ++i)
+            {
+                this.chunk[i] = chunk[i];
+            }
         }
     }
 

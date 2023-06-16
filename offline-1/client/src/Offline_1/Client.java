@@ -16,12 +16,13 @@ import Offline_1.Requests.FilesListRequest;
 import Offline_1.Requests.LoginRequest;
 import Offline_1.Requests.LogoutRequest;
 import Offline_1.Requests.MessagesRequest;
+import Offline_1.Requests.MessagesSeenRequest;
 import Offline_1.Requests.UploadRequest;
 import Offline_1.Requests.UsersListRequest;
 import Offline_1.Requests.FilesListRequest.Privacy;
+import Offline_1.Responses.FileRequestResponse;
 import Offline_1.Responses.FilesListResponse;
 import Offline_1.Responses.LoginResponse;
-import Offline_1.Responses.LogoutResponse;
 import Offline_1.Responses.MessagesResponse;
 import Offline_1.Responses.UploadRespone;
 import Offline_1.Responses.UsersListResponse.UserActivityPair;
@@ -92,8 +93,8 @@ public class Client extends Thread
 
                                 if(loginResponse.IsSuccessful())
                                 {
-                                    SetUserName(loginResponse.GetUserName());
-                                    System.out.println("Logged in as "+ loginResponse.GetUserName());
+                                    SetUserName(tokenizedCommand[1]);
+                                    System.out.println("Logged in as "+ tokenizedCommand[1]);
                                 }
                                 else
                                 {
@@ -145,22 +146,22 @@ public class Client extends Thread
 
                                 if(tokenizedCommand.length > 2)
                                 {
-                                    if(tokenizedCommand[3].equals(Commands.FilePrivacy.PUBLIC))
+                                    if(tokenizedCommand[2].equals(Commands.FilePrivacy.PUBLIC))
                                     {
                                         privacyEnum = Privacy.PUBLIC;
 
                                     }
-                                    else if(tokenizedCommand[3].equals(Commands.FilePrivacy.ALL))
+                                    else if(tokenizedCommand[2].equals(Commands.FilePrivacy.ALL))
                                     {
                                         privacyEnum = Privacy.ALL;
                                     }
-                                    else if(tokenizedCommand[3].equals(Commands.FilePrivacy.PRIVATE))
+                                    else if(tokenizedCommand[2].equals(Commands.FilePrivacy.PRIVATE))
                                     {
                                         privacyEnum = Privacy.PRIVATE;
                                     }
                                 }
 
-                                if(!tokenizedCommand[2].equals(userName) && (privacyEnum == Privacy.PRIVATE || privacyEnum == Privacy.ALL))
+                                if(!tokenizedCommand[1].equals(userName) && (privacyEnum == Privacy.PRIVATE || privacyEnum == Privacy.ALL))
                                 {
                                     System.out.println("Only owner can get access to private files");
                                 }
@@ -207,14 +208,14 @@ public class Client extends Thread
                     {
                         if(IsLoggedIn())
                         {
-                            int latestCount = 0;
+                            boolean getAll = false;
 
-                            if(tokenizedCommand.length >= 2)
+                            if(tokenizedCommand.length > 1 && tokenizedCommand[1].equals(Commands.MessagesArgments.ALL))
                             {
-                                latestCount = Integer.parseInt(tokenizedCommand[1]);
+                                getAll = true;
                             }
 
-                            objectOutputStream.writeObject(new MessagesRequest(latestCount));
+                            objectOutputStream.writeObject(new MessagesRequest(getAll));
 
                             MessagesResponse messagesResponse = (MessagesResponse)objectInputStream.readObject();
                             Vector<Message> messages = messagesResponse.GetMessageList();
@@ -222,16 +223,28 @@ public class Client extends Thread
                             if(messages.size() == 0)
                             {
                                 System.out.println("No messages to show");
+                                objectOutputStream.writeObject(new MessagesSeenRequest(null));
                             }
                             else
                             {
-                                System.out.println("Messages:");
+                                String messageTypes = "unread";
+                                Vector<Integer> messageIndicesSeen = new Vector<>();
+
+                                if(getAll)
+                                {
+                                    messageTypes = "all";
+                                }
+
+                                System.out.println("Showing " + messageTypes + " messages:");
 
                                 for(int i = 0; i < messages.size(); ++i)
                                 {
-                                    System.out.println((i + 1) + ".");
+                                    System.out.println((i + 1) + ". Message from " + messages.get(i).GetSender());
                                     System.out.println(messages.get(i).GetContent());
+                                    messageIndicesSeen.add(messages.get(i).GetId());
                                 }
+
+                                objectOutputStream.writeObject(new MessagesSeenRequest(messageIndicesSeen));
                             }
                         }
                         else
@@ -245,7 +258,18 @@ public class Client extends Thread
                         {
                             if(tokenizedCommand.length >= 3)
                             {
-                                objectOutputStream.writeObject(new FileRequest(tokenizedCommand[1], tokenizedCommand[2]));
+                                objectOutputStream.writeObject(new FileRequest(userName, tokenizedCommand[1], tokenizedCommand[2]));
+                                
+                                FileRequestResponse fileRequestResponse = (FileRequestResponse)objectInputStream.readObject();
+
+                                if(fileRequestResponse.IsSuccessful())
+                                {
+                                    System.out.println("File request successful");
+                                }
+                                else
+                                {
+                                    System.out.println("File request failed: Another request exists with same id");
+                                }
                             }
                             else
                             {
@@ -423,17 +447,27 @@ public class Client extends Thread
                             {
                                 if(downloadData.IsOk())
                                 {
-                                    fileOutputStream.write(downloadData.GetChunk());
-
-                                    System.out.println("Downloaded " + (file.length() * 100) / downloadData.GetTotalSize() + "%");
-
-                                    if(downloadData.IsLastChunk())
+                                    try
                                     {
-                                        break;
+                                        fileOutputStream.write(downloadData.GetChunk());
+
+                                        System.out.println("Downloaded " + (file.length() * 100) / downloadData.GetTotalSize() + "%");
+
+                                        if(downloadData.IsLastChunk())
+                                        {
+                                            break;
+                                        }
+                                        
+                                        objectOutputStream.writeObject(new DownloadAcknowledge(true));
+                                        downloadData = (DownloadData)objectInputStream.readObject();
                                     }
-                                    
-                                    objectOutputStream.writeObject(new DownloadAcknowledge(true));
-                                    downloadData = (DownloadData)objectInputStream.readObject();
+                                    catch(IOException exception)
+                                    {
+                                        fileOutputStream.close();
+                                        file.delete();
+
+                                        throw exception;
+                                    }
                                 }
                                 else
                                 {
@@ -484,15 +518,9 @@ public class Client extends Thread
             }
             catch(IOException exception)
             {
-                if(exception instanceof SocketException)
-                {
-                    System.err.println("Server disconnected");
-                    Close();
-                }
-                else
-                {
-                    exception.printStackTrace();
-                }
+                System.err.println("Server disconnected");
+                Close();
+                exception.printStackTrace();
             }
             catch(ClassNotFoundException exception)
             {

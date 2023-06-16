@@ -8,9 +8,10 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.util.Collections;
 import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.Random;
 import java.util.Vector;
 
@@ -20,10 +21,12 @@ import Offline_1.Requests.FilesListRequest;
 import Offline_1.Requests.LoginRequest;
 import Offline_1.Requests.LogoutRequest;
 import Offline_1.Requests.MessagesRequest;
+import Offline_1.Requests.MessagesSeenRequest;
 import Offline_1.Requests.Request;
 import Offline_1.Requests.UploadRequest;
 import Offline_1.Requests.UsersListRequest;
 import Offline_1.Requests.FilesListRequest.Privacy;
+import Offline_1.Responses.FileRequestResponse;
 import Offline_1.Responses.FilesListResponse;
 import Offline_1.Responses.LoginResponse;
 import Offline_1.Responses.LogoutResponse;
@@ -34,6 +37,9 @@ import Offline_1.Responses.UsersListResponse.UsersListResponse;
 
 public class Client extends Thread
 {
+    public static String USER_INBOX_FILE_NAME = "inbox";
+    public static String USER_PUBLIC_DIR_NAME = "public";
+    public static String USER_PRIVATE_DIR_NAME = "private";
     private boolean running;
     private String userName;
     private Socket socket;
@@ -90,43 +96,43 @@ public class Client extends Thread
                     {
                         SetUserName(newUsername);
 
-                        File userRoot = new File("root", userName);
-                        File userPrivate = new File(userRoot, "private");
-                        File userPublic = new File(userRoot, "public");
-                        File userInbox = new File(userRoot, "inbox");
+                        File userRoot = new File(Server.ROOT_DIR_NAME + "/" + Server.USER_DIR_NAME + "/" + userName);
 
-                        if(!userPrivate.exists())
+                        if(!userRoot.exists())
                         {
+                            System.out.println("New user " + userName + " logged in");
+
+                            File userPrivate = new File(userRoot, USER_PRIVATE_DIR_NAME);
+                            File userPublic = new File(userRoot, USER_PUBLIC_DIR_NAME);
+                            File userInbox = new File(userRoot, USER_INBOX_FILE_NAME);
+
                             userPrivate.mkdirs();
-                        }
-
-                        if(!userPublic.exists())
-                        {
                             userPublic.mkdirs();
-                        }
+                            userInbox.createNewFile();
 
-                        if(userInbox.createNewFile())
-                        {
                             FileOutputStream messageListFileOutputStream = new FileOutputStream(userInbox);
                             ObjectOutputStream messageListObjectOutputStream = new ObjectOutputStream(messageListFileOutputStream);
 
                             messageListObjectOutputStream.writeObject(new MessageList());
                             messageListObjectOutputStream.close();
-                            messageListFileOutputStream.close();
+                        }
+                        else
+                        {
+                            System.out.println("Existing user " + userName + " logged in");
                         }
 
-                        objectOutputStream.writeObject(new LoginResponse(loginRequest.GetUserName()));
+                        objectOutputStream.writeObject(new LoginResponse(true));
                     }
                     else
                     {
-                        objectOutputStream.writeObject(new LoginResponse(""));
+                        objectOutputStream.writeObject(new LoginResponse(false));
                     }
                 }
                 else if(request instanceof UsersListRequest)
                 {
                     Vector<UserActivityPair> usersList = new Vector<>();
                     Hashtable<String, Client> loggedInClients = Server.GetServer().GetLoggedInClients();
-                    File file = new File("root");
+                    File file = new File(Server.ROOT_DIR_NAME);
                     File userDirectories[] = file.listFiles();
 
                     for(int i = 0; i < userDirectories.length; ++i)
@@ -176,60 +182,76 @@ public class Client extends Thread
                 }
                 else if(request instanceof MessagesRequest)
                 {
-                    File file = new File("root/" + userName + "/inbox");
-                    FileInputStream fileInputStream = new FileInputStream(file);
-                    ObjectInputStream messagesObjectInputStream = new ObjectInputStream(fileInputStream);
-                    MessageList messageList = (MessageList)messagesObjectInputStream.readObject();
                     MessagesRequest messagesRequest = (MessagesRequest)request;
-                    int latestCount = messagesRequest.GetLatestCount();
+                    boolean getAll = messagesRequest.ShallGetAll();
+                    File messageListFile = new File(Server.ROOT_DIR_NAME + "/" + Server.USER_DIR_NAME + "/" + userName + "/" + USER_INBOX_FILE_NAME);
+                    FileInputStream messageListFileInputStream = new FileInputStream(messageListFile);
+                    ObjectInputStream messageListObjectInputStream = new ObjectInputStream(messageListFileInputStream);
+                    MessageList messageList = (MessageList)messageListObjectInputStream.readObject();
 
-                    if(messagesRequest.GetLatestCount() > 0)
+                    messageListObjectInputStream.close();
+
+                    Vector<Message> messagesVector = new Vector<>();
+
+                    for(int i = 0; i < messageList.size(); ++i)
                     {
-                        latestCount = messagesRequest.GetLatestCount();
+                        if(getAll || !messageList.get(i).IsSeen())
+                        {
+                            messagesVector.add(messageList.get(i));
+                        }
                     }
 
-                    Vector<Message> latestMessages = new Vector<>();
+                    Collections.sort(messagesVector);
+                    objectOutputStream.writeObject(new MessagesResponse(messagesVector));
 
-                    if(latestCount == 0)
+                    MessagesSeenRequest messagesSeenRequest = (MessagesSeenRequest)objectInputStream.readObject();
+                    Vector<Integer> seenIndices = messagesSeenRequest.GetMessageIndices();
+
+                    if(seenIndices != null)
                     {
-                        latestCount = messageList.size();
+                        for(int i = 0; i < seenIndices.size(); ++i)
+                        {
+                            messageList.get(i).SetSeen(true);
+                        }
                     }
 
-                    for(int i = messageList.size() - 1; i >= messageList.size() - latestCount; --i)
-                    {
-                        latestMessages.add(messageList.get(i));
-                    }
+                    FileOutputStream messageListFileOutputStream = new FileOutputStream(messageListFile);
+                    ObjectOutputStream messageListObjectOutputStream = new ObjectOutputStream(messageListFileOutputStream);
 
-                    messagesObjectInputStream.close();
-                    fileInputStream.close();
-                    objectOutputStream.writeObject(new MessagesResponse(latestMessages));
+                    messageListObjectOutputStream.writeObject(messageList);
+                    messageListObjectOutputStream.close();
                 }
                 else if(request instanceof FileRequest)
                 {
                     FileRequest fileRequest = (FileRequest)request;
-                    Hashtable<String, String> fileRequests = Server.GetServer().GetFileRequests();
-
-                    synchronized(fileRequests)
-                    {
-                        fileRequests.put(fileRequest.GetRequestId(), fileRequest.GetDescription());
-                    }
-
-                    Hashtable<String, Client> loggedInClients = Server.GetServer().GetLoggedInClients();
-                    Iterator<Client> clients;
+                    File fileRequestsFile = new File(Server.ROOT_DIR_NAME, Server.FILE_REQUESTS_FILE_NAME);
+                    FileInputStream fileRequestsFileInputStream = new FileInputStream(fileRequestsFile);
+                    ObjectInputStream fileRequestsObjectInputStream = new ObjectInputStream(fileRequestsFileInputStream);
+                    FileRequests fileRequests = (FileRequests)fileRequestsObjectInputStream.readObject();
                     
-                    synchronized(loggedInClients)
+                    fileRequestsObjectInputStream.close();
+
+                    if(fileRequests.contains(fileRequest.GetRequestId()))
                     {
-                        clients = loggedInClients.elements().asIterator();
+                        objectOutputStream.writeObject(new FileRequestResponse(false));
                     }
-
-                    while(clients.hasNext())
+                    else
                     {
-                        Client client = clients.next();
+                        fileRequests.put(userName, new FileRequest(fileRequest));
 
-                        if(!client.GetUserName().equals(GetUserName()))
+                        FileOutputStream fileRequestsFileOutputStream = new FileOutputStream(fileRequestsFile);
+                        ObjectOutputStream fileRequesObjectOutputStream = new ObjectOutputStream(fileRequestsFileOutputStream);
+
+                        fileRequesObjectOutputStream.writeObject(fileRequests);
+
+                        fileRequesObjectOutputStream.close();
+
+                        File userDirectory = new File(Server.ROOT_DIR_NAME, Server.USER_DIR_NAME);
+                        File userDirectories[] = userDirectory.listFiles();
+
+                        for(int i = 0; i < userDirectories.length; ++i)
                         {
-                            String loggedInUserName = client.GetUserName();
-                            File messageListFile = new File("root/" + loggedInUserName + "/inbox");
+                            File messageListFile = new File(userDirectories[i], USER_INBOX_FILE_NAME);
                             FileInputStream messageListFileInputStream = new FileInputStream(messageListFile);
                             ObjectInputStream messageListObjectInputStream = new ObjectInputStream(messageListFileInputStream);
                             MessageList messageList = (MessageList)messageListObjectInputStream.readObject();
@@ -237,19 +259,20 @@ public class Client extends Thread
                             messageListObjectInputStream.close();
                             messageListFileInputStream.close();
 
-                            String messageText = "New file request from " + GetUserName() + "\n";
+                            String messageText = "Can you upload this file for me?\n";
                             messageText += "Request ID: " + fileRequest.GetRequestId() + "\n";
                             messageText += "Description: " + fileRequest.GetDescription() + "\n";
 
-                            messageList.add(new Message("", messageText));
+                            messageList.add(new Message(messageList.size(), fileRequest.GetSender(), messageText));
 
                             FileOutputStream messageListFileOutputStream = new FileOutputStream(messageListFile);
                             ObjectOutputStream messageListObjectOutputStream = new ObjectOutputStream(messageListFileOutputStream);
 
                             messageListObjectOutputStream.writeObject(messageList);
                             messageListObjectOutputStream.close();
-                            messageListFileOutputStream.close();
                         }
+
+                        objectOutputStream.writeObject(new FileRequestResponse(true));
                     }
                 }
                 else if(request instanceof UploadRequest)
@@ -262,7 +285,7 @@ public class Client extends Thread
                     if(usedBufferSize + fileSize <= Server.MAX_BUFFER_SIZE)
                     {
                         Random random = new Random();
-                        chunkSize = Server.MIN_CHUNK_SIZE + random.nextLong() % (Server.MAX_CHUNK_SIZE - Server.MIN_CHUNK_SIZE);
+                        chunkSize = Server.MIN_CHUNK_SIZE + Math.abs(random.nextLong()) % (Server.MAX_CHUNK_SIZE - Server.MIN_CHUNK_SIZE);
                     }
 
                     if(chunkSize > 0)
@@ -276,56 +299,61 @@ public class Client extends Thread
 
                         if(uploadRequest.GetPrivacy() == Privacy.PRIVATE)
                         {
-                            file = new File("root/" + userName + "/private", uploadRequest.GetFileName());
+                            file = new File(Server.ROOT_DIR_NAME + "/" + Server.USER_DIR_NAME + "/" + userName + "/" + USER_PRIVATE_DIR_NAME, uploadRequest.GetFileName());
                         }
                         else
                         {
-                            file = new File("root/" + userName + "/public", uploadRequest.GetFileName());
+                            file = new File(Server.ROOT_DIR_NAME + "/" + Server.USER_DIR_NAME + "/" + userName + "/" + USER_PUBLIC_DIR_NAME, uploadRequest.GetFileName());
                         }
                         
-                        file.delete();
                         file.createNewFile();
                         socket.setSoTimeout(30000);
 
                         FileOutputStream fileOutputStream = new FileOutputStream(file);
 
-                        try
+                        for(long i = 0; i < chunkCount; ++i)
                         {
-                            for(long i = 0; i < chunkCount; ++i)
+                            try
                             {
                                 UploadData uploadData = (UploadData)objectInputStream.readObject();
 
                                 fileOutputStream.write(uploadData.GetChunk());
                                 objectOutputStream.writeObject(new UploadAcknowledge(true));
                             }
-
-                            if(lastChunkSize > 0)
-                            {
-                                UploadData uploadData = (UploadData)objectInputStream.readObject();
-
-                                fileOutputStream.write(uploadData.GetChunk());
-                                objectOutputStream.writeObject(new UploadAcknowledge(true));
-                            }
-
-                            objectInputStream.readObject();
-
-                            if(file.length() == fileSize)
-                            {
-                                objectOutputStream.writeObject(new UploadSuccess());
-                            }
-                            else
+                            catch(IOException exception)
                             {
                                 file.delete();
+                                
+                                throw exception;
                             }
                         }
-                        catch(IOException exception)
+
+                        if(lastChunkSize > 0)
                         {
-                            if(exception instanceof SocketTimeoutException)
+                            try
+                            {
+                                UploadData uploadData = (UploadData)objectInputStream.readObject();
+
+                                fileOutputStream.write(uploadData.GetChunk());
+                                objectOutputStream.writeObject(new UploadAcknowledge(true));
+                            }
+                            catch(IOException exception)
                             {
                                 file.delete();
+                                
+                                throw exception;
                             }
+                        }
 
-                            exception.printStackTrace();
+                        objectInputStream.readObject();
+
+                        if(file.length() == fileSize)
+                        {
+                            objectOutputStream.writeObject(new UploadSuccess());
+                        }
+                        else
+                        {
+                            file.delete();
                         }
 
                         socket.setSoTimeout(0);
@@ -345,19 +373,18 @@ public class Client extends Thread
 
                     if(userName.equals(GetUserName()) && downloadRequest.GetPrivacy() == Privacy.PRIVATE)
                     {
-                        file = new File("root/" + userName + "/private/" + fileName);
+                        file = new File(Server.ROOT_DIR_NAME + "/" + Server.USER_DIR_NAME + "/" + userName + "/" + USER_PRIVATE_DIR_NAME + "/" + fileName);
                     }
                     else
                     {
-                        file = new File("root/" + userName + "/public/" + fileName);
+                        file = new File(Server.ROOT_DIR_NAME + "/" + Server.USER_DIR_NAME + "/" + userName + "/" + USER_PUBLIC_DIR_NAME + "/" + fileName);
                     }
 
                     if(file.exists())
                     {
                         FileInputStream fileInputStream = new FileInputStream(file);
                         Random random = new Random();
-                        long nextLong = random.nextLong() % (Server.MAX_CHUNK_SIZE - Server.MIN_CHUNK_SIZE);
-                        long chunkSize = Server.MIN_CHUNK_SIZE + nextLong;
+                        long chunkSize = Server.MIN_CHUNK_SIZE + Math.abs(random.nextLong()) % (Server.MAX_CHUNK_SIZE - Server.MIN_CHUNK_SIZE);
                         long chunkCount = file.length() / chunkSize;
                         long lastChunkSize = file.length() % chunkSize;
 
@@ -409,14 +436,8 @@ public class Client extends Thread
             }
             catch(IOException exception)
             {
-                if(exception instanceof EOFException)
-                {
-                    Close();
-                }
-                else
-                {
-                    exception.printStackTrace();
-                }
+                Close();
+                exception.printStackTrace();
             }
             catch(ClassNotFoundException exception)
             {
@@ -454,15 +475,18 @@ public class Client extends Thread
 
     public synchronized void Logout()
     {
-        System.out.println("User " + userName + " attempting to logout");
-
-        Hashtable<String, Client> loggedInClients = Server.GetServer().GetLoggedInClients();
-
-        synchronized(loggedInClients)
+        if(IsLoggedIn())
         {
-            loggedInClients.remove(userName);
+            System.out.println("User " + userName + " attempting to logout");
 
-            userName = "";
+            Hashtable<String, Client> loggedInClients = Server.GetServer().GetLoggedInClients();
+
+            synchronized(loggedInClients)
+            {
+                loggedInClients.remove(userName);
+
+                userName = "";
+            }
         }
     }
 
@@ -480,6 +504,18 @@ public class Client extends Thread
         {
             objectInputStream.close();
             objectOutputStream.close();
+        }
+        catch(IOException exception)
+        {
+            exception.printStackTrace();
+        }
+        catch(NullPointerException exception)
+        {
+            exception.printStackTrace();
+        }
+
+        try
+        {
             socket.close();
             System.out.println("Remote socket address " + socket.getRemoteSocketAddress() + " disconnected");
         }

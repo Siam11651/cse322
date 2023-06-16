@@ -2,15 +2,15 @@ package Offline_1.Requests;
 
 public class MessagesRequest extends Request
 {
-    private int latestCount;
+    private boolean all;
 
-    public MessagesRequest(int latestCount)
+    public MessagesRequest(boolean all)
     {
-        this.latestCount = latestCount;
+        this.all = all;
     }
 
-    public int GetLatestCount()
+    public boolean ShallGetAll()
     {
-        return latestCount;
+        return all;
     }
 }

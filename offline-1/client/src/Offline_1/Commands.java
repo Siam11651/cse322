@@ -16,6 +16,11 @@ public class Commands
         public static String OWN = "own";
     }
 
+    public class MessagesArgments
+    {
+        public static String ALL = "all";
+    }
+
     public class FilePrivacy
     {
         public static String PUBLIC = "public";
