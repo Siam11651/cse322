@@ -9,6 +9,8 @@ import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.Vector;
 
+import Offline_1.UploadBuffer.UploadBuffer;
+
 public class Server extends Thread
 {
     final public static String ROOT_DIR_NAME = "root";
@@ -18,15 +20,19 @@ public class Server extends Thread
     final public static long MIN_CHUNK_SIZE = 1000;
     final public static long MAX_CHUNK_SIZE = 1000000;
     final public static int PORT = 6969;
+    private static int fileId;
     private boolean running;
     private static Server server;
     private ServerSocket serverSocket;
     private Hashtable<String, Client> loggedInClients;
+    private UploadBuffer uploadBuffer;
 
     private Server()
     {
         running = true;
+        fileId = 0;
         loggedInClients = new Hashtable<>();
+        uploadBuffer = new UploadBuffer();
         File fileRequestsFile = new File(ROOT_DIR_NAME, FILE_REQUESTS_FILE_NAME);
 
         try
@@ -74,6 +80,11 @@ public class Server extends Thread
         }
     }
 
+    public synchronized static int GenerateFileId()
+    {
+        return ++fileId;
+    }
+
     public synchronized Vector<File> GetPrivateFilesList(String userName)
     {
         File userRoot = new File(ROOT_DIR_NAME + "/" + USER_DIR_NAME + "/" + userName);
@@ -119,6 +130,11 @@ public class Server extends Thread
     public synchronized Hashtable<String, Client> GetLoggedInClients()
     {
         return loggedInClients;
+    }
+
+    public synchronized UploadBuffer GetUploadBuffer()
+    {
+        return uploadBuffer;
     }
 
     public synchronized long GetUsedBufferSize(String userName)

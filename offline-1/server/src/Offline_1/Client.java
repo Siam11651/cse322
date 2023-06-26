@@ -31,6 +31,8 @@ import Offline_1.Responses.MessagesResponse;
 import Offline_1.Responses.UploadRespone;
 import Offline_1.Responses.UsersListResponse.UserActivityPair;
 import Offline_1.Responses.UsersListResponse.UsersListResponse;
+import Offline_1.UploadBuffer.UploadBuffer;
+import Offline_1.UploadBuffer.UploadFile;
 
 public class Client extends Thread
 {
@@ -276,7 +278,8 @@ public class Client extends Thread
                 {
                     UploadRequest uploadRequest = (UploadRequest)request;
                     long fileSize = uploadRequest.GetFileSize();
-                    long usedBufferSize = Server.GetServer().GetUsedBufferSize(userName);
+                    UploadBuffer uploadBuffer = Server.GetServer().GetUploadBuffer();
+                    long usedBufferSize = uploadBuffer.GetBufferSize();
                     long chunkSize = 0;
 
                     if(usedBufferSize + fileSize <= Server.MAX_BUFFER_SIZE)
@@ -287,26 +290,27 @@ public class Client extends Thread
 
                     if(chunkSize > 0)
                     {
-                        objectOutputStream.writeObject(new UploadRespone(userName, chunkSize));
+                        int fileId = Server.GenerateFileId();
+
+                        objectOutputStream.writeObject(new UploadRespone(Integer.toString(fileId), chunkSize));
 
                         long chunkCount = fileSize / chunkSize;
                         long lastChunkSize = fileSize % chunkSize;
-
-                        File file = null;
+                        String filePath;
 
                         if(uploadRequest.GetPrivacy() == Privacy.PRIVATE)
                         {
-                            file = new File(Server.ROOT_DIR_NAME + "/" + Server.USER_DIR_NAME + "/" + userName + "/" + USER_PRIVATE_DIR_NAME, uploadRequest.GetFileName());
+                            filePath = Server.ROOT_DIR_NAME + "/" + Server.USER_DIR_NAME + "/" + userName + "/" + USER_PRIVATE_DIR_NAME + "/" + uploadRequest.GetFileName();
                         }
                         else
                         {
-                            file = new File(Server.ROOT_DIR_NAME + "/" + Server.USER_DIR_NAME + "/" + userName + "/" + USER_PUBLIC_DIR_NAME, uploadRequest.GetFileName());
+                            filePath = Server.ROOT_DIR_NAME + "/" + Server.USER_DIR_NAME + "/" + userName + "/" + USER_PUBLIC_DIR_NAME + "/" + uploadRequest.GetFileName();
                         }
-                        
-                        file.createNewFile();
-                        socket.setSoTimeout(30000);
 
-                        FileOutputStream fileOutputStream = new FileOutputStream(file);
+                        UploadFile uploadFile = new UploadFile(filePath, null);
+
+                        uploadBuffer.put(Integer.toString(fileId), uploadFile);
+                        socket.setSoTimeout(30000);
 
                         for(long i = 0; i < chunkCount; ++i)
                         {
@@ -314,14 +318,12 @@ public class Client extends Thread
                             {
                                 UploadData uploadData = (UploadData)objectInputStream.readObject();
 
-                                fileOutputStream.write(uploadData.GetChunk());
+                                uploadFile.WriteChunk(uploadData.GetChunk());
                                 objectOutputStream.writeObject(new UploadAcknowledge(true));
                             }
                             catch(IOException exception)
                             {
                                 socket.setSoTimeout(0);
-                                fileOutputStream.close();
-                                file.delete();
                                 
                                 throw exception;
                             }
@@ -333,31 +335,26 @@ public class Client extends Thread
                             {
                                 UploadData uploadData = (UploadData)objectInputStream.readObject();
 
-                                fileOutputStream.write(uploadData.GetChunk());
+                                uploadFile.WriteChunk(uploadData.GetChunk());
                                 objectOutputStream.writeObject(new UploadAcknowledge(true));
                             }
                             catch(IOException exception)
                             {
                                 socket.setSoTimeout(0);
-                                fileOutputStream.close();
-                                file.delete();
                                 
                                 throw exception;
                             }
                         }
 
                         objectInputStream.readObject();
-                        fileOutputStream.close();
 
-                        if(file.length() == fileSize)
+                        if(uploadFile.GetChunk().length == fileSize)
                         {
                             objectOutputStream.writeObject(new UploadSuccess());
-                        }
-                        else
-                        {
-                            file.delete();
+                            uploadBuffer.Write(Integer.toString(fileId));
                         }
 
+                        uploadBuffer.remove(Integer.toString(fileId));
                         socket.setSoTimeout(0);
                     }
                     else
