@@ -16,9 +16,9 @@ public class Server extends Thread
     final public static String ROOT_DIR_NAME = "root";
     final public static String USER_DIR_NAME = "users";
     final public static String FILE_REQUESTS_FILE_NAME = "file-requests";
-    final public static long MAX_BUFFER_SIZE = 100000000000L; // 100 GB 🤡
-    final public static long MIN_CHUNK_SIZE = 1000;
-    final public static long MAX_CHUNK_SIZE = 1000000;
+    final public static long MAX_BUFFER_SIZE = 1000000000L; // 1 GB 🤡
+    final public static long MIN_CHUNK_SIZE = 1000000;
+    final public static long MAX_CHUNK_SIZE = 5000000;
     final public static int PORT = 6969;
     private static int fileId;
     private boolean running;

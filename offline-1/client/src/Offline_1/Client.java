@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.Timer;
 import java.util.Vector;
 
 import Offline_1.Requests.DownloadRequest;
@@ -74,7 +75,10 @@ public class Client extends Thread
 
                     System.in.read(consoleInputByteArray);
 
-                    String tokenizedCommand[] = (new String(consoleInputByteArray)).trim().split(" ");
+                    String command = new String(consoleInputByteArray);
+                    command = command.trim();
+                    ArgumentParser argumentParser = new ArgumentParser(command);
+                    String[] tokenizedCommand = argumentParser.GetTokens();
 
                     if(tokenizedCommand[0].equals(Commands.LOGIN))
                     {
@@ -351,6 +355,9 @@ public class Client extends Thread
                                     long lastChunkSize = fileSize % chunkSize;
                                     UploadAcknowledge uploadAcknowledge = null;
                                     long uploadedSize = 0;
+                                    String uploadCompletionString = "";
+                                    long startTime = System.currentTimeMillis();
+                                    long currentTime = System.currentTimeMillis() - startTime;
                                     
                                     for(long i = 0; i < chunkCount;  ++i)
                                     {
@@ -359,13 +366,19 @@ public class Client extends Thread
                                         fileInputStream.read(chunk);
 
                                         objectOutputStream.writeObject(new UploadData(fileId, chunk));
+                                        currentTime = System.currentTimeMillis() - startTime;
                                         uploadAcknowledge = (UploadAcknowledge)objectInputStream.readObject();
 
                                         if(uploadAcknowledge.IsOk())
                                         {
                                             uploadedSize += chunkSize;
+                                            int previousPrintLength = uploadCompletionString.length();
 
-                                            System.out.println("Uploaded " + ((uploadedSize * 100) / fileSize) + "% of file");
+                                            System.out.print("\b".repeat(previousPrintLength));
+
+                                            uploadCompletionString = "Uploaded " + ((uploadedSize * 100) / fileSize) + "% (" + (int)(uploadedSize * 1000 / currentTime) + " Bps)";
+
+                                            System.out.print(uploadCompletionString);
                                         }
                                         else
                                         {
@@ -380,6 +393,7 @@ public class Client extends Thread
                                         fileInputStream.read(chunk);
 
                                         objectOutputStream.writeObject(new UploadData(fileId, chunk));
+                                        currentTime = System.currentTimeMillis() - startTime;
                                         uploadAcknowledge = (UploadAcknowledge)objectInputStream.readObject();
                                         uploadedSize += lastChunkSize;
                                     }
@@ -388,7 +402,14 @@ public class Client extends Thread
 
                                     if(uploadAcknowledge != null && uploadAcknowledge.IsOk())
                                     {
-                                        System.out.println("Uploaded " + ((uploadedSize * 100) / fileSize) + "% of file");
+                                        int previousPrintLength = uploadCompletionString.length();
+
+                                        System.out.print("\b".repeat(previousPrintLength));
+
+                                        uploadCompletionString = "Uploaded " + ((uploadedSize * 100) / fileSize) + "% (" + (int)(uploadedSize * 1000 / currentTime) + " Bps)";
+
+                                        System.out.print(uploadCompletionString);
+                                        System.out.println();
                                         objectOutputStream.writeObject(new UploadComplete());
                                         objectInputStream.readObject();
                                         System.out.println("Upload completed successfully");
@@ -441,6 +462,9 @@ public class Client extends Thread
 
                             FileOutputStream fileOutputStream = new FileOutputStream(file);
                             boolean successful = true;
+                            String downloadCompletionString = "";
+                            long startTime = System.currentTimeMillis();
+                            long currentTime = System.currentTimeMillis() - startTime;
 
                             while(true)
                             {
@@ -450,10 +474,20 @@ public class Client extends Thread
                                     {
                                         fileOutputStream.write(downloadData.GetChunk());
 
-                                        System.out.println("Downloaded " + (file.length() * 100) / downloadData.GetTotalSize() + "%");
+                                        currentTime = System.currentTimeMillis() - startTime;
+                                        long fileLength = file.length();
+                                        int previousPrintLength = downloadCompletionString.length();
+
+                                        System.out.print("\b".repeat(previousPrintLength));
+
+                                        downloadCompletionString = "Downloaded " + (fileLength * 100) / downloadData.GetTotalSize() + "% (" + (int)(fileLength * 1000 / currentTime) + " Bps)";
+
+                                        System.out.print(downloadCompletionString);
 
                                         if(downloadData.IsLastChunk())
                                         {
+                                            System.out.println();
+
                                             break;
                                         }
                                         
@@ -462,6 +496,7 @@ public class Client extends Thread
                                     }
                                     catch(IOException exception)
                                     {
+                                        System.out.println();
                                         fileOutputStream.close();
                                         file.delete();
 
@@ -473,12 +508,18 @@ public class Client extends Thread
                                     System.out.println("Cannot download");
 
                                     successful = false;
+
+                                    break;
                                 }
                             }
 
                             fileOutputStream.close();
 
-                            if(!successful)
+                            if(successful)
+                            {
+                                System.out.println("Download Complete");
+                            }
+                            else
                             {
                                 file.delete();
                             }

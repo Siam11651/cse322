@@ -307,7 +307,7 @@ public class Client extends Thread
                             filePath = Server.ROOT_DIR_NAME + "/" + Server.USER_DIR_NAME + "/" + userName + "/" + USER_PUBLIC_DIR_NAME + "/" + uploadRequest.GetFileName();
                         }
 
-                        UploadFile uploadFile = new UploadFile(filePath, null);
+                        UploadFile uploadFile = new UploadFile(filePath, (int)fileSize);
 
                         uploadBuffer.put(Integer.toString(fileId), uploadFile);
                         socket.setSoTimeout(30000);
