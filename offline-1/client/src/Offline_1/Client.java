@@ -164,6 +164,10 @@ public class Client extends Thread
                                         privacyEnum = Privacy.PRIVATE;
                                     }
                                 }
+                                else
+                                {
+                                    privacyEnum = Privacy.PRIVATE;
+                                }
 
                                 if(!tokenizedCommand[1].equals(userName) && (privacyEnum == Privacy.PRIVATE || privacyEnum == Privacy.ALL))
                                 {
@@ -171,7 +175,7 @@ public class Client extends Thread
                                 }
                                 else
                                 {
-                                    objectOutputStream.writeObject(new FilesListRequest(userName, privacyEnum));
+                                    objectOutputStream.writeObject(new FilesListRequest(tokenizedCommand[1], privacyEnum));
 
                                     FilesListResponse filesListResponse = (FilesListResponse)objectInputStream.readObject();
                                     Vector<String> publicFiles = filesListResponse.GetPublicFilesList();

@@ -131,7 +131,7 @@ public class Client extends Thread
                 {
                     Vector<UserActivityPair> usersList = new Vector<>();
                     Hashtable<String, Client> loggedInClients = Server.GetServer().GetLoggedInClients();
-                    File file = new File(Server.ROOT_DIR_NAME);
+                    File file = new File(Server.ROOT_DIR_NAME + "/" + Server.USER_DIR_NAME);
                     File userDirectories[] = file.listFiles();
 
                     for(int i = 0; i < userDirectories.length; ++i)
