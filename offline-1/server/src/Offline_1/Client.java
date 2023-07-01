@@ -236,7 +236,7 @@ public class Client extends Thread
                     }
                     else
                     {
-                        fileRequests.put(userName, new FileRequest(fileRequest));
+                        fileRequests.put(fileRequest.GetRequestId(), new FileRequest(fileRequest));
 
                         FileOutputStream fileRequestsFileOutputStream = new FileOutputStream(fileRequestsFile);
                         ObjectOutputStream fileRequesObjectOutputStream = new ObjectOutputStream(fileRequestsFileOutputStream);
@@ -250,13 +250,17 @@ public class Client extends Thread
 
                         for(int i = 0; i < userDirectories.length; ++i)
                         {
+                            if(userDirectories[i].getName().equals(userName))
+                            {
+                                continue;
+                            }
+
                             File messageListFile = new File(userDirectories[i], USER_INBOX_FILE_NAME);
                             FileInputStream messageListFileInputStream = new FileInputStream(messageListFile);
                             ObjectInputStream messageListObjectInputStream = new ObjectInputStream(messageListFileInputStream);
                             MessageList messageList = (MessageList)messageListObjectInputStream.readObject();
 
                             messageListObjectInputStream.close();
-                            messageListFileInputStream.close();
 
                             String messageText = "Can you upload this file for me?\n";
                             messageText += "Request ID: " + fileRequest.GetRequestId() + "\n";
@@ -352,6 +356,47 @@ public class Client extends Thread
                         {
                             objectOutputStream.writeObject(new UploadSuccess());
                             uploadBuffer.Write(Integer.toString(fileId));
+
+                            if(!uploadRequest.GetRequestId().isEmpty())
+                            {
+                                FileInputStream fileRequestsFileInputStream = new FileInputStream(Server.ROOT_DIR_NAME + "/" + Server.FILE_REQUESTS_FILE_NAME);
+                                ObjectInputStream fileRequestsObjectInputStream = new ObjectInputStream(fileRequestsFileInputStream);
+                                FileRequests fileRequests = (FileRequests)fileRequestsObjectInputStream.readObject();
+
+                                fileRequestsObjectInputStream.close();
+
+                                String requestId = uploadRequest.GetRequestId();
+                                FileRequest fileRequest = fileRequests.get(requestId);
+
+                                if(fileRequest != null)
+                                {
+                                    fileRequests.remove(requestId);
+
+                                    FileOutputStream fileRequestsFileOutputStream = new FileOutputStream(Server.ROOT_DIR_NAME + "/" + Server.FILE_REQUESTS_FILE_NAME);
+                                    ObjectOutputStream fileRequestsFileObjectOutputStream = new ObjectOutputStream(fileRequestsFileOutputStream);
+
+                                    fileRequestsFileObjectOutputStream.writeObject(fileRequests);
+
+                                    fileRequestsFileObjectOutputStream.close();
+
+                                    File messageListFile = new File(Server.ROOT_DIR_NAME + "/" + Server.USER_DIR_NAME + "/" + fileRequest.GetSender(), USER_INBOX_FILE_NAME);
+                                    FileInputStream messageListFileInputStream = new FileInputStream(messageListFile);
+                                    ObjectInputStream messageListObjectInputStream = new ObjectInputStream(messageListFileInputStream);
+                                    MessageList messageList = (MessageList)messageListObjectInputStream.readObject();
+
+                                    messageListObjectInputStream.close();
+
+                                    String messageText = "File request: " + requestId + " has been accepted\n";
+
+                                    messageList.add(new Message(messageList.size(), fileRequest.GetSender(), messageText));
+
+                                    FileOutputStream messageListFileOutputStream = new FileOutputStream(messageListFile);
+                                    ObjectOutputStream messageListObjectOutputStream = new ObjectOutputStream(messageListFileOutputStream);
+
+                                    messageListObjectOutputStream.writeObject(messageList);
+                                    messageListObjectOutputStream.close();
+                                }
+                            }
                         }
 
                         uploadBuffer.remove(Integer.toString(fileId));

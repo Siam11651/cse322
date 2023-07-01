@@ -1,4 +1,4 @@
-package Offline_1;
+package Offline_1.Utils;
 
 import java.util.Vector;
 
@@ -48,7 +48,7 @@ public class ArgumentParser
         }
     }
 
-    String[] GetTokens()
+    public String[] GetTokens()
     {
         String[] tokensArray = new String[tokens.size()];
 

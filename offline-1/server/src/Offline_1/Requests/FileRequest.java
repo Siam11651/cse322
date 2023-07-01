@@ -13,6 +13,26 @@ public class FileRequest extends Request
         this.description = new String(description);
     }
 
+    @Override
+    public boolean equals(Object other)
+    {
+        if(other instanceof FileRequest)
+        {
+            if(((FileRequest)other).requestId.equals(requestId))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            return false;
+        }
+    }
+
     public FileRequest(FileRequest other)
     {
         this.sender = new String(other.sender);

@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.util.Timer;
 import java.util.Vector;
 
 import Offline_1.Requests.DownloadRequest;
@@ -27,6 +26,8 @@ import Offline_1.Responses.MessagesResponse;
 import Offline_1.Responses.UploadRespone;
 import Offline_1.Responses.UsersListResponse.UserActivityPair;
 import Offline_1.Responses.UsersListResponse.UsersListResponse;
+import Offline_1.Utils.ArgumentParser;
+import Offline_1.Utils.Preffixifier;
 
 public class Client extends Thread
 {
@@ -373,10 +374,30 @@ public class Client extends Thread
                                         {
                                             uploadedSize += chunkSize;
                                             int previousPrintLength = uploadCompletionString.length();
+                                            long shortenedValue = 0;
+                                            char prefix = '\0';
+
+                                            if(currentTime > 0)
+                                            {
+                                                Preffixifier preffixifier = new Preffixifier(uploadedSize * 1000 / currentTime);
+                                                prefix = preffixifier.GetPrefix();
+                                                shortenedValue = preffixifier.GetShortenedValue();
+                                            }
+
+                                            String speed;
+
+                                            if(prefix == '\0')
+                                            {
+                                                speed = shortenedValue + " Bps";
+                                            }
+                                            else
+                                            {
+                                                speed = shortenedValue + " " + prefix + "Bps";
+                                            }
 
                                             System.out.print("\b".repeat(previousPrintLength));
 
-                                            uploadCompletionString = "Uploaded " + ((uploadedSize * 100) / fileSize) + "% (" + (int)(uploadedSize * 1000 / currentTime) + " Bps)";
+                                            uploadCompletionString = "Uploaded " + ((uploadedSize * 100) / fileSize) + "% (" + speed + ")";
 
                                             System.out.print(uploadCompletionString);
                                         }
@@ -386,7 +407,24 @@ public class Client extends Thread
                                         }
                                     }
 
-                                    if(uploadAcknowledge != null && uploadAcknowledge.IsOk() && lastChunkSize > 0)
+                                    boolean goLastChunk = false;
+
+                                    if(chunkCount == 0)
+                                    {
+                                        if(lastChunkSize > 0)
+                                        {
+                                            goLastChunk = true;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if(uploadAcknowledge != null && uploadAcknowledge.IsOk() && lastChunkSize > 0)
+                                        {
+                                            goLastChunk = true;
+                                        }
+                                    }
+
+                                    if(goLastChunk)
                                     {
                                         byte chunk[] = new byte[(int)lastChunkSize];
 
@@ -403,16 +441,36 @@ public class Client extends Thread
                                     if(uploadAcknowledge != null && uploadAcknowledge.IsOk())
                                     {
                                         int previousPrintLength = uploadCompletionString.length();
+                                        long shortenedValue = 0;
+                                        char prefix = '\0';
+
+                                        if(currentTime > 0)
+                                        {
+                                            Preffixifier preffixifier = new Preffixifier(uploadedSize * 1000 / currentTime);
+                                            prefix = preffixifier.GetPrefix();
+                                            shortenedValue = preffixifier.GetShortenedValue();
+                                        }
+
+                                        String speed;
+
+                                        if(prefix == '\0')
+                                        {
+                                            speed = shortenedValue + " Bps";
+                                        }
+                                        else
+                                        {
+                                            speed = shortenedValue + " " + prefix + "Bps";
+                                        }
 
                                         System.out.print("\b".repeat(previousPrintLength));
 
-                                        uploadCompletionString = "Uploaded " + ((uploadedSize * 100) / fileSize) + "% (" + (int)(uploadedSize * 1000 / currentTime) + " Bps)";
+                                        uploadCompletionString = "Uploaded " + ((uploadedSize * 100) / fileSize) + "% (" + speed + ")";
 
                                         System.out.print(uploadCompletionString);
                                         System.out.println();
                                         objectOutputStream.writeObject(new UploadComplete());
                                         objectInputStream.readObject();
-                                        System.out.println("Upload completed successfully");
+                                        System.out.println("Upload complete");
                                     }
                                     else
                                     {
@@ -477,10 +535,30 @@ public class Client extends Thread
                                         currentTime = System.currentTimeMillis() - startTime;
                                         long fileLength = file.length();
                                         int previousPrintLength = downloadCompletionString.length();
+                                        long shortenedValue = 0;
+                                        char prefix = '\0';
+
+                                        if(currentTime > 0)
+                                        {
+                                            Preffixifier preffixifier = new Preffixifier(fileLength * 1000 / currentTime);
+                                            prefix = preffixifier.GetPrefix();
+                                            shortenedValue = preffixifier.GetShortenedValue();
+                                        }
+                                        
+                                        String speed;
+
+                                        if(prefix == '\0')
+                                        {
+                                            speed = shortenedValue + " Bps";
+                                        }
+                                        else
+                                        {
+                                            speed = shortenedValue + " " + prefix + "Bps";
+                                        }
 
                                         System.out.print("\b".repeat(previousPrintLength));
 
-                                        downloadCompletionString = "Downloaded " + (fileLength * 100) / downloadData.GetTotalSize() + "% (" + (int)(fileLength * 1000 / currentTime) + " Bps)";
+                                        downloadCompletionString = "Downloaded " + (fileLength * 100) / downloadData.GetTotalSize() + "% (" + speed + ")";
 
                                         System.out.print(downloadCompletionString);
 
