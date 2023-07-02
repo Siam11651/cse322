@@ -13,6 +13,19 @@ public class UploadFile
         complete = 0;
     }
 
+    @Override
+    public boolean equals(Object other)
+    {
+        if(other instanceof UploadFile)
+        {
+            return ((UploadFile)other).filePath.equals(filePath);
+        }
+        else
+        {
+            return false;
+        }
+    }
+
     public synchronized String GetFilePath()
     {
         return filePath;
