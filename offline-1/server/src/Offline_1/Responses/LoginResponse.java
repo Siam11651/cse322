@@ -6,7 +6,7 @@ public class LoginResponse extends Response
 
     public LoginResponse(boolean successful)
     {
-        this.successful = true;
+        this.successful = successful;
     }
 
     public boolean IsSuccessful()

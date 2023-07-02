@@ -102,7 +102,7 @@ public class Client extends Thread
                                 }
                                 else
                                 {
-                                    System.out.println("Login failed");
+                                    System.out.println("User already logged in");
                                 }
                             }
                             else

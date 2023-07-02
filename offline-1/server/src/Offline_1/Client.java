@@ -66,6 +66,19 @@ public class Client extends Thread
     }
 
     @Override
+    public boolean equals(Object other)
+    {
+        if(other instanceof Client)
+        {
+            return ((Client)other).userName.equals(userName);
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    @Override
     public void run()
     {
         while(running)
@@ -80,19 +93,12 @@ public class Client extends Thread
                     Hashtable<String, Client> loggedInClients = Server.GetServer().GetLoggedInClients();
                     boolean successful;
                     String newUsername = loginRequest.GetUserName();
-
-                    synchronized(loggedInClients)
-                    {
-                        successful = !loggedInClients.containsKey(newUsername);
-
-                        if(successful)
-                        {
-                            loggedInClients.put(newUsername, this);
-                        }
-                    }
+                    successful = !loggedInClients.containsKey(newUsername);
 
                     if(successful)
                     {
+                        loggedInClients.put(newUsername, this);
+                        
                         SetUserName(newUsername);
 
                         File userRoot = new File(Server.ROOT_DIR_NAME + "/" + Server.USER_DIR_NAME + "/" + userName);
