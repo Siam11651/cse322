@@ -6,10 +6,12 @@
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/ssid.h"
 #include "ns3/mobility-module.h"
+#include "ns3/propagation-loss-model.h"
 
 #define WIRED_SPEED "1Mbps"
 #define WIRELESS_SPEED "5Mbps"
 #define PACKET_SIZE 1024
+#define TX_RANGE 5
 
 // topology lol
 // s                    r
@@ -18,24 +20,34 @@
 
 NS_LOG_COMPONENT_DEFINE("offline-2");
 
-void calculate_throughput(ns3::ApplicationContainer &reciever_apps, uint64_t &time_elapsed)
+ns3::ApplicationContainer sender_apps;
+ns3::ApplicationContainer reciever_apps;
+uint64_t time_elapsed = 0;
+
+void calculate_throughput()
 {
     ++time_elapsed;
-    uint64_t total_packets = 0;
+    uint64_t total_transmitted_packets = 0;
+    uint64_t total_recieved_packets = 0;
+
+    for(size_t i = 0; i < sender_apps.GetN(); ++i)
+    {
+        total_recieved_packets += ns3::StaticCast<ns3::OnOffApplication>(sender_apps.Get(i))->Get;
+    }
 
     for(size_t i = 0; i < reciever_apps.GetN(); ++i)
     {
-        total_packets += ns3::StaticCast<ns3::PacketSink>(reciever_apps.Get(i))->GetTotalRx();
+        total_recieved_packets += ns3::StaticCast<ns3::PacketSink>(reciever_apps.Get(i))->GetTotalRx();
     }
 
-    double rate = (((double)total_packets * PACKET_SIZE) / time_elapsed) / 1000000.0;
+    double rate = (((double)total_recieved_packets * PACKET_SIZE) / time_elapsed) / 1000000.0;
+    double ratio = (double)total_recieved_packets / total_transmitted_packets;
 
-    NS_LOG_UNCOND(ns3::Simulator::Now().GetSeconds() << "s: " << rate << " Mbit/s");
-    ns3::Simulator::Schedule(ns3::Seconds(1), calculate_throughput, reciever_apps, time_elapsed);
+    NS_LOG_UNCOND(ns3::Simulator::Now().GetSeconds() << "s: rate = " << rate << " Mbit/s; ratio = " << ratio);
+    ns3::Simulator::Schedule(ns3::Seconds(1), calculate_throughput);
 }
 
-int
-main(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
     uint64_t count_stations = 20;
     uint64_t count_flows = 10;
@@ -58,8 +70,8 @@ main(int argc, char* argv[])
     ns3::NodeContainer right_nodes;
 
     access_point_nodes.Create(2);
-    left_nodes.Create(count_stations);
-    right_nodes.Create(count_stations);
+    left_nodes.Create(count_stations / 2);
+    right_nodes.Create(count_stations / 2);
 
     ns3::PointToPointHelper p2p_helper;
 
@@ -69,6 +81,9 @@ main(int argc, char* argv[])
     ns3::NetDeviceContainer access_points_net_devices = p2p_helper.Install(access_point_nodes);
 
     ns3::YansWifiChannelHelper yans_wifi_channel_helper = ns3::YansWifiChannelHelper::Default();
+
+    yans_wifi_channel_helper.AddPropagationLoss("ns3::RangePropagationLossModel", "MaxRange", ns3::DoubleValue(coverage_area * TX_RANGE));
+
     ns3::YansWifiPhyHelper left_yans_wifi_phy_helper;
     ns3::YansWifiPhyHelper right_yans_wifi_phy_helper;
 
@@ -120,35 +135,26 @@ main(int argc, char* argv[])
 
     ns3::Ipv4InterfaceContainer right_station_interfaces = ipv4_address_helper.Assign(right_station_net_devices);
 
-    ns3::OnOffHelper *sender_helpers[count_stations];
-    ns3::PacketSinkHelper *reciever_helpers[count_stations];
-    ns3::ApplicationContainer sender_apps;
-    ns3::ApplicationContainer reciever_apps;
-
-    for(size_t i = 0; i < count_stations; ++i)
+    for(size_t i = 0; i < count_flows; ++i)
     {
-        sender_helpers[i] = new ns3::OnOffHelper("ns3::TcpSocketFactory", ns3::InetSocketAddress(right_station_interfaces.GetAddress(i), 9));
+        ns3::OnOffHelper sender_helper("ns3::TcpSocketFactory", ns3::InetSocketAddress(right_station_interfaces.GetAddress(i % (count_stations / 2)), 9));
 
-        sender_helpers[i]->SetAttribute("PacketSize", ns3::UintegerValue(PACKET_SIZE));
-        sender_helpers[i]->SetAttribute("DataRate", ns3::DataRateValue(ns3::DataRate(packet_rate * PACKET_SIZE)));
-
-        sender_apps.Add(sender_helpers[i]->Install(left_nodes.Get(i)));
-
-        delete sender_helpers[i];
-
-        reciever_helpers[i] = new ns3::PacketSinkHelper("ns3::TcpSocketFactory", ns3::InetSocketAddress(ns3::Ipv4Address::GetAny(), 9));
-
-        reciever_apps.Add(reciever_helpers[i]->Install(right_nodes.Get(i)));
-
-        delete reciever_helpers[i];
+        sender_helper.SetAttribute("PacketSize", ns3::UintegerValue(PACKET_SIZE));
+        sender_helper.SetAttribute("DataRate", ns3::DataRateValue(ns3::DataRate(packet_rate * PACKET_SIZE)));
+        sender_apps.Add(sender_helper.Install(left_nodes.Get(i % (count_stations / 2))));
     }
 
-    uint64_t time_elapsed = 0;
+    for(size_t i = 0; i < count_stations / 2; ++i)
+    {
+        ns3::PacketSinkHelper reciever_helper("ns3::TcpSocketFactory", ns3::InetSocketAddress(ns3::Ipv4Address::GetAny(), +9));
+
+        reciever_apps.Add(reciever_helper.Install(right_nodes.Get(i)));
+    }
 
     sender_apps.Start(ns3::Seconds(1));
     reciever_apps.Start(ns3::Seconds(0));
     ns3::Ipv4GlobalRoutingHelper::PopulateRoutingTables();
-    ns3::Simulator::Schedule(ns3::Seconds(1), calculate_throughput, reciever_apps, time_elapsed);
+    ns3::Simulator::Schedule(ns3::Seconds(1), calculate_throughput);
     ns3::Simulator::Stop(ns3::Seconds(10));
     ns3::Simulator::Run();
     ns3::Simulator::Destroy();
