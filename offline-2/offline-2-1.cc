@@ -7,11 +7,13 @@
 #include "ns3/ssid.h"
 #include "ns3/mobility-module.h"
 #include "ns3/propagation-loss-model.h"
+#include "ns3/wifi-net-device.h"
 
 #define WIRED_SPEED "1Mbps"
 #define WIRELESS_SPEED "5Mbps"
 #define PACKET_SIZE 1024
 #define TX_RANGE 5
+#define DELAY 100 // milliseconds
 
 // topology lol
 // s                    r
@@ -20,31 +22,33 @@
 
 NS_LOG_COMPONENT_DEFINE("offline-2");
 
-ns3::ApplicationContainer sender_apps;
-ns3::ApplicationContainer reciever_apps;
-uint64_t time_elapsed = 0;
+uint64_t start_time = 0;
+uint64_t packet_sent = 0;
+uint64_t packet_recieved = 0;
+uint64_t bits_sent = 0;
+uint64_t bits_recieved = 0;
 
-void calculate_throughput()
+void packet_sent_counter(ns3::Ptr<const ns3::Packet> packet_ptr)
 {
-    ++time_elapsed;
-    uint64_t total_transmitted_packets = 0;
-    uint64_t total_recieved_packets = 0;
+    ++packet_sent;
+    bits_sent += packet_ptr->GetSize() * 8;
+}
 
-    for(size_t i = 0; i < sender_apps.GetN(); ++i)
-    {
-        total_recieved_packets += ns3::StaticCast<ns3::OnOffApplication>(sender_apps.Get(i))->Get;
-    }
+void packet_recieved_counter(ns3::Ptr<const ns3::Packet> packet_ptr, const ns3::Address &address)
+{
+    ++packet_recieved;
+    bits_recieved += packet_ptr->GetSize();
+}
 
-    for(size_t i = 0; i < reciever_apps.GetN(); ++i)
-    {
-        total_recieved_packets += ns3::StaticCast<ns3::PacketSink>(reciever_apps.Get(i))->GetTotalRx();
-    }
+void timer()
+{
+    uint64_t time_elapsed = ns3::Simulator::Now().GetMilliSeconds();
+    double throughput = (double)bits_recieved / time_elapsed;
+    double ratio = (double)packet_recieved / packet_sent;
 
-    double rate = (((double)total_recieved_packets * PACKET_SIZE) / time_elapsed) / 1000000.0;
-    double ratio = (double)total_recieved_packets / total_transmitted_packets;
+    NS_LOG_UNCOND(time_elapsed << "ms; throughput = " << throughput << "; ratio = " << ratio);
 
-    NS_LOG_UNCOND(ns3::Simulator::Now().GetSeconds() << "s: rate = " << rate << " Mbit/s; ratio = " << ratio);
-    ns3::Simulator::Schedule(ns3::Seconds(1), calculate_throughput);
+    ns3::Simulator::Schedule(ns3::MilliSeconds(DELAY), timer);
 }
 
 int main(int argc, char* argv[])
@@ -75,7 +79,7 @@ int main(int argc, char* argv[])
 
     ns3::PointToPointHelper p2p_helper;
 
-    p2p_helper.SetDeviceAttribute("DataRate", ns3::StringValue("2Mbps"));
+    p2p_helper.SetDeviceAttribute("DataRate", ns3::StringValue("5Mbps"));
     p2p_helper.SetChannelAttribute("Delay", ns3::StringValue("2ms"));
 
     ns3::NetDeviceContainer access_points_net_devices = p2p_helper.Install(access_point_nodes);
@@ -134,6 +138,8 @@ int main(int argc, char* argv[])
     ipv4_address_helper.Assign(right_access_point_net_devices);
 
     ns3::Ipv4InterfaceContainer right_station_interfaces = ipv4_address_helper.Assign(right_station_net_devices);
+    ns3::ApplicationContainer sender_apps;
+    ns3::ApplicationContainer reciever_apps;
 
     for(size_t i = 0; i < count_flows; ++i)
     {
@@ -151,11 +157,21 @@ int main(int argc, char* argv[])
         reciever_apps.Add(reciever_helper.Install(right_nodes.Get(i)));
     }
 
+    for(size_t i = 0; i < sender_apps.GetN(); ++i)
+    {
+        sender_apps.Get(i)->TraceConnectWithoutContext("Tx", ns3::MakeCallback(packet_sent_counter));
+    }
+
+    for(size_t i = 0; i < reciever_apps.GetN(); ++i)
+    {
+        reciever_apps.Get(i)->TraceConnectWithoutContext("Rx", ns3::MakeCallback(packet_recieved_counter));
+    }
+
     sender_apps.Start(ns3::Seconds(1));
     reciever_apps.Start(ns3::Seconds(0));
     ns3::Ipv4GlobalRoutingHelper::PopulateRoutingTables();
-    ns3::Simulator::Schedule(ns3::Seconds(1), calculate_throughput);
     ns3::Simulator::Stop(ns3::Seconds(10));
+    ns3::Simulator::Schedule(ns3::MilliSeconds(DELAY), timer);
     ns3::Simulator::Run();
     ns3::Simulator::Destroy();
 
