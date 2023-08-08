@@ -61,11 +61,12 @@ int main(int argc, char* argv[])
 
     ns3::CommandLine cmd(__FILE__);
 
-    cmd.Parse(argc, argv);
     cmd.AddValue("count-stations", "Set number of sender and reciever stations", count_stations);
     cmd.AddValue("count-flows", "Set number of data packets to be sent", count_flows);
     cmd.AddValue("packet-rate", "Set number of packets to be sent per second", packet_rate);
     cmd.AddValue("coverage-area", "Set coverage area", coverage_area);
+    cmd.AddValue("verbose", "Enable verbose mode", verbose);
+    cmd.Parse(argc, argv);
     ns3::Time::SetResolution(ns3::Time::NS);
 
     if(verbose)
@@ -123,6 +124,7 @@ int main(int argc, char* argv[])
     ns3::NetDeviceContainer right_access_point_net_devices = wifi_helper.Install(right_yans_wifi_phy_helper, wifi_mac_helper, access_point_nodes.Get(1));
     ns3::MobilityHelper mobility_helper;
 
+    mobility_helper.SetPositionAllocator("ns3::RandomRectanglePositionAllocator", "X", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(count_stations) + "]"), "Y", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(count_stations) + "]"));
     mobility_helper.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility_helper.Install(left_nodes);
     mobility_helper.Install(right_nodes);
