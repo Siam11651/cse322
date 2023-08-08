@@ -20,7 +20,7 @@
 // s    ap0 ---- ap1    r
 // s                    r
 
-NS_LOG_COMPONENT_DEFINE("offline-2-1");
+NS_LOG_COMPONENT_DEFINE("offline-2-2");
 
 uint64_t start_time = 0;
 uint64_t packet_sent = 0;
@@ -42,11 +42,17 @@ void packet_recieved_counter(ns3::Ptr<const ns3::Packet> packet_ptr, const ns3::
     bits_recieved += packet_ptr->GetSize();
 }
 
+ns3::Ptr<ns3::Node> n1;
+
 void timer()
 {
     uint64_t time_elapsed = ns3::Simulator::Now().GetMilliSeconds();
     throughput = (double_t)bits_recieved / time_elapsed;
     ratio = (double_t)packet_recieved / packet_sent;
+
+    // ns3::Vector position = n1->GetObject<ns3::MobilityModel>()->GetPosition();
+
+    // std::cout << position.x << " " << position.y << std::endl;
 
     ns3::Simulator::Schedule(ns3::MilliSeconds(DELAY), timer);
 }
@@ -56,7 +62,7 @@ int main(int argc, char* argv[])
     uint64_t count_stations = 20;
     uint64_t count_flows = 10;
     uint64_t packet_rate = 100;
-    uint64_t coverage_area = 5;
+    uint64_t speed = 5;
     bool verbose = false;
 
     ns3::CommandLine cmd(__FILE__);
@@ -65,7 +71,7 @@ int main(int argc, char* argv[])
     cmd.AddValue("count-stations", "Set number of sender and reciever stations", count_stations);
     cmd.AddValue("count-flows", "Set number of data packets to be sent", count_flows);
     cmd.AddValue("packet-rate", "Set number of packets to be sent per second", packet_rate);
-    cmd.AddValue("coverage-area", "Set coverage area", coverage_area);
+    cmd.AddValue("speed", "Set speed of nodes", speed);
     ns3::Time::SetResolution(ns3::Time::NS);
 
     if(verbose)
@@ -84,6 +90,8 @@ int main(int argc, char* argv[])
     left_nodes.Create(count_stations / 2);
     right_nodes.Create(count_stations / 2);
 
+    n1 = left_nodes.Get(0);
+
     ns3::PointToPointHelper p2p_helper;
 
     p2p_helper.SetDeviceAttribute("DataRate", ns3::StringValue("5Mbps"));
@@ -92,9 +100,6 @@ int main(int argc, char* argv[])
     ns3::NetDeviceContainer access_points_net_devices = p2p_helper.Install(access_point_nodes);
 
     ns3::YansWifiChannelHelper yans_wifi_channel_helper = ns3::YansWifiChannelHelper::Default();
-
-    yans_wifi_channel_helper.AddPropagationLoss("ns3::RangePropagationLossModel", "MaxRange", ns3::DoubleValue(coverage_area * TX_RANGE));
-
     ns3::YansWifiPhyHelper left_yans_wifi_phy_helper;
     ns3::YansWifiPhyHelper right_yans_wifi_phy_helper;
 
@@ -124,9 +129,15 @@ int main(int argc, char* argv[])
     ns3::MobilityHelper mobility_helper;
 
     mobility_helper.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+    mobility_helper.Install(access_point_nodes);
+
+    ns3::Ptr<ns3::ConstantRandomVariable> constant_random_variable_ptr = ns3::Create<ns3::ConstantRandomVariable>();
+
+    constant_random_variable_ptr->SetAttribute("Constant", ns3::DoubleValue((double)speed));
+
+    // mobility_helper.SetMobilityModel("ns3::RandomDirection2dMobilityModel", "Bounds", ns3::RectangleValue(ns3::Rectangle(0, 0, count_stations, count_stations)), "Speed", ns3::PointerValue(constant_random_variable_ptr));
     mobility_helper.Install(left_nodes);
     mobility_helper.Install(right_nodes);
-    mobility_helper.Install(access_point_nodes);
 
     ns3::InternetStackHelper internet_stack_helper;
 
