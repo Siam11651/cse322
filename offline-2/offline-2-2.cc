@@ -182,5 +182,7 @@ int main(int argc, char* argv[])
     ns3::Simulator::Run();
     ns3::Simulator::Destroy();
 
+    std::cout << count_flows << " " << packet_rate << " " << throughput << " " << ratio << std::endl;
+
     return 0;
 }

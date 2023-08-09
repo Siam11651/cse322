@@ -54,9 +54,9 @@ void timer()
 int main(int argc, char* argv[])
 {
     uint64_t count_stations = 20;
-    uint64_t count_flows = 10;
+    uint64_t count_flows = 50;
     uint64_t packet_rate = 100;
-    uint64_t coverage_area = 5;
+    uint64_t coverage_area_multiplier = 1;
     bool verbose = false;
 
     ns3::CommandLine cmd(__FILE__);
@@ -64,7 +64,7 @@ int main(int argc, char* argv[])
     cmd.AddValue("count-stations", "Set number of sender and reciever stations", count_stations);
     cmd.AddValue("count-flows", "Set number of data packets to be sent", count_flows);
     cmd.AddValue("packet-rate", "Set number of packets to be sent per second", packet_rate);
-    cmd.AddValue("coverage-area", "Set coverage area", coverage_area);
+    cmd.AddValue("coverage-area-multiplier", "Set coverage area", coverage_area_multiplier);
     cmd.AddValue("verbose", "Enable verbose mode", verbose);
     cmd.Parse(argc, argv);
     ns3::Time::SetResolution(ns3::Time::NS);
@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
 
     ns3::YansWifiChannelHelper yans_wifi_channel_helper = ns3::YansWifiChannelHelper::Default();
 
-    yans_wifi_channel_helper.AddPropagationLoss("ns3::RangePropagationLossModel", "MaxRange", ns3::DoubleValue(coverage_area * TX_RANGE));
+    yans_wifi_channel_helper.AddPropagationLoss("ns3::RangePropagationLossModel", "MaxRange", ns3::DoubleValue(coverage_area_multiplier * TX_RANGE));
 
     ns3::YansWifiPhyHelper left_yans_wifi_phy_helper;
     ns3::YansWifiPhyHelper right_yans_wifi_phy_helper;
@@ -123,8 +123,9 @@ int main(int argc, char* argv[])
 
     ns3::NetDeviceContainer right_access_point_net_devices = wifi_helper.Install(right_yans_wifi_phy_helper, wifi_mac_helper, access_point_nodes.Get(1));
     ns3::MobilityHelper mobility_helper;
+    double_t world_dimension = std::ceil(std::sqrt(count_stations));
 
-    mobility_helper.SetPositionAllocator("ns3::RandomRectanglePositionAllocator", "X", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(count_stations) + "]"), "Y", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(count_stations) + "]"));
+    mobility_helper.SetPositionAllocator("ns3::RandomRectanglePositionAllocator", "X", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"), "Y", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"));
     mobility_helper.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility_helper.Install(left_nodes);
     mobility_helper.Install(right_nodes);
@@ -183,6 +184,8 @@ int main(int argc, char* argv[])
     ns3::Simulator::Schedule(ns3::MilliSeconds(DELAY), timer);
     ns3::Simulator::Run();
     ns3::Simulator::Destroy();
+
+    std::cout << throughput << " " << ratio << std::endl;
 
     return 0;
 }
