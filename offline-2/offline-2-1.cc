@@ -123,7 +123,7 @@ int main(int argc, char* argv[])
 
     ns3::NetDeviceContainer right_access_point_net_devices = wifi_helper.Install(right_yans_wifi_phy_helper, wifi_mac_helper, access_point_nodes.Get(1));
     ns3::MobilityHelper mobility_helper;
-    double_t world_dimension = std::ceil(std::sqrt(count_stations));
+    double_t world_dimension = std::sqrt(count_stations);
 
     mobility_helper.SetPositionAllocator("ns3::RandomRectanglePositionAllocator", "X", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"), "Y", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"));
     mobility_helper.SetMobilityModel("ns3::ConstantPositionMobilityModel");

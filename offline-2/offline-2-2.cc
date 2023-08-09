@@ -54,7 +54,7 @@ void timer()
 int main(int argc, char* argv[])
 {
     uint64_t count_stations = 20;
-    uint64_t count_flows = 10;
+    uint64_t count_flows = 50;
     uint64_t packet_rate = 100;
     uint64_t speed = 5;
     bool verbose = false;
@@ -120,11 +120,12 @@ int main(int argc, char* argv[])
 
     ns3::NetDeviceContainer right_access_point_net_devices = wifi_helper.Install(right_yans_wifi_phy_helper, wifi_mac_helper, access_point_nodes.Get(1));
     ns3::MobilityHelper mobility_helper;
+    double_t world_dimension = std::sqrt(count_stations);
 
-    mobility_helper.SetPositionAllocator("ns3::RandomRectanglePositionAllocator", "X", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(count_stations) + "]"), "Y", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(count_stations) + "]"));
+    mobility_helper.SetPositionAllocator("ns3::RandomRectanglePositionAllocator", "X", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"), "Y", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"));
     mobility_helper.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility_helper.Install(access_point_nodes);
-    mobility_helper.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Bounds", ns3::RectangleValue(ns3::Rectangle(0.0, count_stations, 0.0, count_stations)), "Speed", ns3::StringValue("ns3::ConstantRandomVariable[Constant=" + std::to_string(speed) + "]"));
+    mobility_helper.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Bounds", ns3::RectangleValue(ns3::Rectangle(0.0, world_dimension, 0.0, world_dimension)), "Speed", ns3::StringValue("ns3::ConstantRandomVariable[Constant=" + std::to_string(speed) + "]"));
     mobility_helper.Install(left_nodes);
     mobility_helper.Install(right_nodes);
 
@@ -182,7 +183,7 @@ int main(int argc, char* argv[])
     ns3::Simulator::Run();
     ns3::Simulator::Destroy();
 
-    std::cout << count_flows << " " << packet_rate << " " << throughput << " " << ratio << std::endl;
+    std::cout << throughput << " " << ratio << std::endl;
 
     return 0;
 }
