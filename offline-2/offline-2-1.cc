@@ -9,8 +9,6 @@
 #include "ns3/propagation-loss-model.h"
 #include "ns3/wifi-net-device.h"
 
-#define WIRED_SPEED "1Mbps"
-#define WIRELESS_SPEED "5Mbps"
 #define PACKET_SIZE 1024
 #define TX_RANGE 5
 #define DELAY 100 // milliseconds
@@ -25,7 +23,6 @@ NS_LOG_COMPONENT_DEFINE("offline-2-1");
 uint64_t start_time = 0;
 uint64_t packet_sent = 0;
 uint64_t packet_recieved = 0;
-uint64_t bits_sent = 0;
 uint64_t bits_recieved = 0;
 double_t throughput = 0.0;
 double_t ratio = 0.0;
@@ -33,13 +30,12 @@ double_t ratio = 0.0;
 void packet_sent_counter(ns3::Ptr<const ns3::Packet> packet_ptr)
 {
     ++packet_sent;
-    bits_sent += packet_ptr->GetSize() * 8;
 }
 
 void packet_recieved_counter(ns3::Ptr<const ns3::Packet> packet_ptr, const ns3::Address &address)
 {
     ++packet_recieved;
-    bits_recieved += packet_ptr->GetSize();
+    bits_recieved += packet_ptr->GetSize() * 8;
 }
 
 void timer()
@@ -47,8 +43,6 @@ void timer()
     uint64_t time_elapsed = ns3::Simulator::Now().GetMilliSeconds();
     throughput = (double_t)bits_recieved / time_elapsed;
     ratio = (double_t)packet_recieved / packet_sent;
-
-    ns3::Simulator::Schedule(ns3::MilliSeconds(DELAY), timer);
 }
 
 int main(int argc, char* argv[])
@@ -123,12 +117,17 @@ int main(int argc, char* argv[])
 
     ns3::NetDeviceContainer right_access_point_net_devices = wifi_helper.Install(right_yans_wifi_phy_helper, wifi_mac_helper, access_point_nodes.Get(1));
     ns3::MobilityHelper mobility_helper;
-    double_t world_dimension = std::sqrt(count_stations);
+    double_t world_dimension = 2 * coverage_area_multiplier * TX_RANGE;
 
-    mobility_helper.SetPositionAllocator("ns3::RandomRectanglePositionAllocator", "X", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"), "Y", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"));
     mobility_helper.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+    mobility_helper.SetPositionAllocator("ns3::RandomDiscPositionAllocator", "Rho", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"));
     mobility_helper.Install(left_nodes);
     mobility_helper.Install(right_nodes);
+    
+    ns3::Ptr<ns3::ListPositionAllocator> center = ns3::CreateObject<ns3::ListPositionAllocator>();
+
+    center->Add(ns3::Vector(0.0, 0.0, 0.0));
+    mobility_helper.SetPositionAllocator(center);
     mobility_helper.Install(access_point_nodes);
 
     ns3::InternetStackHelper internet_stack_helper;
@@ -156,7 +155,7 @@ int main(int argc, char* argv[])
         ns3::OnOffHelper sender_helper("ns3::TcpSocketFactory", ns3::InetSocketAddress(right_station_interfaces.GetAddress(i % (count_stations / 2)), 9));
 
         sender_helper.SetAttribute("PacketSize", ns3::UintegerValue(PACKET_SIZE));
-        sender_helper.SetAttribute("DataRate", ns3::DataRateValue(ns3::DataRate(packet_rate * PACKET_SIZE)));
+        sender_helper.SetAttribute("DataRate", ns3::DataRateValue(ns3::DataRate(packet_rate * PACKET_SIZE * 8)));
         sender_apps.Add(sender_helper.Install(left_nodes.Get(i % (count_stations / 2))));
     }
 
@@ -181,7 +180,7 @@ int main(int argc, char* argv[])
     reciever_apps.Start(ns3::Seconds(0));
     ns3::Ipv4GlobalRoutingHelper::PopulateRoutingTables();
     ns3::Simulator::Stop(ns3::Seconds(10));
-    ns3::Simulator::Schedule(ns3::MilliSeconds(DELAY), timer);
+    ns3::Simulator::Schedule(ns3::Seconds(9.9), timer);
     ns3::Simulator::Run();
     ns3::Simulator::Destroy();
 
