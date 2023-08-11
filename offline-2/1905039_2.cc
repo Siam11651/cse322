@@ -12,13 +12,14 @@
 #define PACKET_SIZE 1024
 #define TX_RANGE 5
 #define DELAY 100 // milliseconds
+#define P2P_DISTANCE 200.0
 
 // topology lol
 // s                    r
 // s    ap0 ---- ap1    r
 // s                    r
 
-NS_LOG_COMPONENT_DEFINE("offline-2-1");
+NS_LOG_COMPONENT_DEFINE("offline-2-2");
 
 uint64_t start_time = 0;
 uint64_t packet_sent = 0;
@@ -50,7 +51,7 @@ int main(int argc, char* argv[])
     uint64_t count_stations = 20;
     uint64_t count_flows = 50;
     uint64_t packet_rate = 100;
-    uint64_t coverage_area_multiplier = 1;
+    uint64_t speed = 5;
     bool verbose = false;
 
     ns3::CommandLine cmd(__FILE__);
@@ -58,7 +59,7 @@ int main(int argc, char* argv[])
     cmd.AddValue("count-stations", "Set number of sender and reciever stations", count_stations);
     cmd.AddValue("count-flows", "Set number of data packets to be sent", count_flows);
     cmd.AddValue("packet-rate", "Set number of packets to be sent per second", packet_rate);
-    cmd.AddValue("coverage-area-multiplier", "Set coverage area", coverage_area_multiplier);
+    cmd.AddValue("speed", "Set speed of nodes", speed);
     cmd.AddValue("verbose", "Enable verbose mode", verbose);
     cmd.Parse(argc, argv);
     ns3::Time::SetResolution(ns3::Time::NS);
@@ -87,9 +88,6 @@ int main(int argc, char* argv[])
     ns3::NetDeviceContainer access_points_net_devices = p2p_helper.Install(access_point_nodes);
 
     ns3::YansWifiChannelHelper yans_wifi_channel_helper = ns3::YansWifiChannelHelper::Default();
-
-    yans_wifi_channel_helper.AddPropagationLoss("ns3::RangePropagationLossModel", "MaxRange", ns3::DoubleValue(coverage_area_multiplier * TX_RANGE));
-
     ns3::YansWifiPhyHelper left_yans_wifi_phy_helper;
     ns3::YansWifiPhyHelper right_yans_wifi_phy_helper;
 
@@ -117,18 +115,22 @@ int main(int argc, char* argv[])
 
     ns3::NetDeviceContainer right_access_point_net_devices = wifi_helper.Install(right_yans_wifi_phy_helper, wifi_mac_helper, access_point_nodes.Get(1));
     ns3::MobilityHelper mobility_helper;
-    double_t world_dimension = 2 * coverage_area_multiplier * TX_RANGE;
+    double_t world_dimension = 2 * TX_RANGE;
 
     mobility_helper.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+
+    ns3::Ptr<ns3::ListPositionAllocator> centers = ns3::CreateObject<ns3::ListPositionAllocator>();
+
+    centers->Add(ns3::Vector(0.0, 0.0, 0.0));
+    centers->Add(ns3::Vector(P2P_DISTANCE, 0.0, 0.0));
+    mobility_helper.SetPositionAllocator(centers);
+    mobility_helper.Install(access_point_nodes);
+    mobility_helper.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Bounds", ns3::RectangleValue(ns3::Rectangle(-world_dimension, world_dimension, -world_dimension, world_dimension)), "Speed", ns3::StringValue("ns3::ConstantRandomVariable[Constant=" + std::to_string(speed) + "]"));
     mobility_helper.SetPositionAllocator("ns3::RandomDiscPositionAllocator", "Rho", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"));
     mobility_helper.Install(left_nodes);
+    mobility_helper.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Bounds", ns3::RectangleValue(ns3::Rectangle(-world_dimension + P2P_DISTANCE, world_dimension + P2P_DISTANCE, -world_dimension, world_dimension)), "Speed", ns3::StringValue("ns3::ConstantRandomVariable[Constant=" + std::to_string(speed) + "]"));
+    mobility_helper.SetPositionAllocator("ns3::RandomDiscPositionAllocator", "X", ns3::DoubleValue(P2P_DISTANCE), "Rho", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"));
     mobility_helper.Install(right_nodes);
-    
-    ns3::Ptr<ns3::ListPositionAllocator> center = ns3::CreateObject<ns3::ListPositionAllocator>();
-
-    center->Add(ns3::Vector(0.0, 0.0, 0.0));
-    mobility_helper.SetPositionAllocator(center);
-    mobility_helper.Install(access_point_nodes);
 
     ns3::InternetStackHelper internet_stack_helper;
 
@@ -161,7 +163,7 @@ int main(int argc, char* argv[])
 
     for(size_t i = 0; i < count_stations / 2; ++i)
     {
-        ns3::PacketSinkHelper reciever_helper("ns3::TcpSocketFactory", ns3::InetSocketAddress(ns3::Ipv4Address::GetAny(), +9));
+        ns3::PacketSinkHelper reciever_helper("ns3::TcpSocketFactory", ns3::InetSocketAddress(ns3::Ipv4Address::GetAny(), 9));
 
         reciever_apps.Add(reciever_helper.Install(right_nodes.Get(i)));
     }

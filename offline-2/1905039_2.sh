@@ -14,7 +14,7 @@ for node in ${nodes[@]}
 do
     echo "Working on count-stations $node"
 
-    output=$(./ns3 run --quiet "scratch/offline-2-2.cc --count-stations=$node")
+    output=$(./ns3 run --quiet "scratch/1905039_2.cc --count-stations=$node")
 
     echo "$node $output" >> "$node_data_file_name"
 done
@@ -36,7 +36,7 @@ for flow in ${flows[@]}
 do
     echo "Working on count-flows $flow"
 
-    output=$(./ns3 run --quiet "scratch/offline-2-2.cc --count-flows=$flow")
+    output=$(./ns3 run --quiet "scratch/1905039_2.cc --count-flows=$flow")
 
     echo "$flow $output" >> "$flow_data_file_name"
 done
@@ -58,7 +58,7 @@ for packet_rate in ${packet_rates[@]}
 do
     echo "Working on packet-rate $packet_rate"
 
-    output=$(./ns3 run --quiet "scratch/offline-2-2.cc --packet-rate=$packet_rate")
+    output=$(./ns3 run --quiet "scratch/1905039_2.cc --packet-rate=$packet_rate")
 
     echo "$packet_rate $output" >> "$packet_rate_data_file_name"
 done
@@ -80,7 +80,7 @@ for speed in ${speeds[@]}
 do
     echo "Working on speed $speed"
 
-    output=$(./ns3 run --quiet "scratch/offline-2-2.cc --speed=$speed")
+    output=$(./ns3 run --quiet "scratch/1905039_2.cc --speed=$speed")
 
     echo "$speed $output" >> "$speed_data_file_name"
 done

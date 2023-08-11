@@ -14,7 +14,7 @@ for node in ${nodes[@]}
 do
     echo "Working on count-stations $node"
 
-    output=$(./ns3 run --quiet "scratch/offline-2-1.cc --count-stations=$node")
+    output=$(./ns3 run --quiet "scratch/1905039_1.cc --count-stations=$node")
 
     echo "$node $output" >> "$node_data_file_name"
 done
@@ -36,7 +36,7 @@ for flow in ${flows[@]}
 do
     echo "Working on count-flows $flow"
 
-    output=$(./ns3 run --quiet "scratch/offline-2-1.cc --count-flows=$flow")
+    output=$(./ns3 run --quiet "scratch/1905039_1.cc --count-flows=$flow")
 
     echo "$flow $output" >> "$flow_data_file_name"
 done
@@ -58,7 +58,7 @@ for packet_rate in ${packet_rates[@]}
 do
     echo "Working on packet-rate $packet_rate"
 
-    output=$(./ns3 run --quiet "scratch/offline-2-1.cc --packet-rate=$packet_rate")
+    output=$(./ns3 run --quiet "scratch/1905039_1.cc --packet-rate=$packet_rate")
 
     echo "$packet_rate $output" >> "$packet_rate_data_file_name"
 done
@@ -80,7 +80,7 @@ for coverage in ${coverages[@]}
 do
     echo "Working on coverage $coverage"
 
-    output=$(./ns3 run --quiet "scratch/offline-2-1.cc --coverage-area-multiplier=$coverage")
+    output=$(./ns3 run --quiet "scratch/1905039_1.cc --coverage-area-multiplier=$coverage")
 
     echo "$coverage $output" >> "$coverage_data_file_name"
 done
