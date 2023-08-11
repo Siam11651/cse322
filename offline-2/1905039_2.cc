@@ -12,7 +12,7 @@
 #define PACKET_SIZE 1024
 #define TX_RANGE 5
 #define DELAY 100 // milliseconds
-#define P2P_DISTANCE 200.0
+#define P2P_DISTANCE 100.0
 
 // topology lol
 // s                    r
@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
 
     ns3::PointToPointHelper p2p_helper;
 
-    p2p_helper.SetDeviceAttribute("DataRate", ns3::StringValue("5Mbps"));
+    p2p_helper.SetDeviceAttribute("DataRate", ns3::StringValue("2Mbps"));
     p2p_helper.SetChannelAttribute("Delay", ns3::StringValue("2ms"));
 
     ns3::NetDeviceContainer access_points_net_devices = p2p_helper.Install(access_point_nodes);
@@ -121,12 +121,12 @@ int main(int argc, char* argv[])
 
     ns3::Ptr<ns3::ListPositionAllocator> centers = ns3::CreateObject<ns3::ListPositionAllocator>();
 
-    centers->Add(ns3::Vector(0.0, 0.0, 0.0));
+    centers->Add(ns3::Vector(-P2P_DISTANCE, 0.0, 0.0));
     centers->Add(ns3::Vector(P2P_DISTANCE, 0.0, 0.0));
     mobility_helper.SetPositionAllocator(centers);
     mobility_helper.Install(access_point_nodes);
-    mobility_helper.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Bounds", ns3::RectangleValue(ns3::Rectangle(-world_dimension, world_dimension, -world_dimension, world_dimension)), "Speed", ns3::StringValue("ns3::ConstantRandomVariable[Constant=" + std::to_string(speed) + "]"));
-    mobility_helper.SetPositionAllocator("ns3::RandomDiscPositionAllocator", "Rho", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"));
+    mobility_helper.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Bounds", ns3::RectangleValue(ns3::Rectangle(-world_dimension - P2P_DISTANCE, world_dimension - P2P_DISTANCE, -world_dimension, world_dimension)), "Speed", ns3::StringValue("ns3::ConstantRandomVariable[Constant=" + std::to_string(speed) + "]"));
+    mobility_helper.SetPositionAllocator("ns3::RandomDiscPositionAllocator", "X", ns3::DoubleValue(-P2P_DISTANCE), "Rho", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"));
     mobility_helper.Install(left_nodes);
     mobility_helper.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Bounds", ns3::RectangleValue(ns3::Rectangle(-world_dimension + P2P_DISTANCE, world_dimension + P2P_DISTANCE, -world_dimension, world_dimension)), "Speed", ns3::StringValue("ns3::ConstantRandomVariable[Constant=" + std::to_string(speed) + "]"));
     mobility_helper.SetPositionAllocator("ns3::RandomDiscPositionAllocator", "X", ns3::DoubleValue(P2P_DISTANCE), "Rho", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"));
