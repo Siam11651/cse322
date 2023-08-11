@@ -133,30 +133,6 @@ int main(int argc, char* argv[])
     mobility_helper.SetPositionAllocator("ns3::RandomDiscPositionAllocator", "X", ns3::DoubleValue(P2P_DISTANCE), "Rho", ns3::StringValue("ns3::UniformRandomVariable[Min=0.0|Max=" + std::to_string(world_dimension) + "]"));
     mobility_helper.Install(right_nodes);
 
-    ns3::Vector a = access_point_nodes.Get(0)->GetObject<ns3::MobilityModel>()->GetPosition();
-
-    // std::cout << a.x << " " << a.y << std::endl;
-
-    // for(size_t i = 0; i < left_nodes.GetN(); ++i)
-    // {
-    //     ns3::Vector p = left_nodes.Get(i)->GetObject<ns3::MobilityModel>()->GetPosition();
-    //     double_t d = std::sqrt(std::pow(a.x - p.x, 2) + std::pow(a.y - p.y, 2));
-
-    //     std::cout << p.x << " " << p.y << " " << d << std::endl;
-    // }
-
-    // a = access_point_nodes.Get(1)->GetObject<ns3::MobilityModel>()->GetPosition();
-
-    // std::cout << a.x << " " << a.y << std::endl;
-
-    // for(size_t i = 0; i < right_nodes.GetN(); ++i)
-    // {
-    //     ns3::Vector p = right_nodes.Get(i)->GetObject<ns3::MobilityModel>()->GetPosition();
-    //     double_t d = std::sqrt(std::pow(a.x - p.x, 2) + std::pow(a.y - p.y, 2));
-
-    //     std::cout << p.x << " " << p.y << " " << d << std::endl;
-    // }
-
     ns3::InternetStackHelper internet_stack_helper;
 
     internet_stack_helper.Install(left_nodes);
