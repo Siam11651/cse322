@@ -22,8 +22,8 @@ static void congestion_window_change(ns3::Ptr<ns3::OutputStreamWrapper> stream, 
 
 int main(int argc, char* argv[])
 {
-    uint64_t bottleneck_rate = 300;
-    int64_t loss_rate_exponent = -3;
+    uint64_t bottleneck_rate = 50;
+    double_t loss_rate_exponent = -6;
     bool trace_congestion = false;
     bool verbose = false;
     ns3::CommandLine cmd(__FILE__);
@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
     cmd.AddValue("trace-congestion", "Trace Congestion Window", trace_congestion);
     cmd.Parse(argc, argv);
 
-    uint64_t bandwidth_delay_product = (bottleneck_rate * 100000) / offline_3::PACKET_SIZE / 8.0;
+    uint64_t bandwidth_delay_product = (bottleneck_rate * 100000) / offline_3::PACKET_SIZE / 8;
 
     ns3::Time::SetResolution(ns3::Time::NS);
 
@@ -68,10 +68,7 @@ int main(int argc, char* argv[])
     ns3::Ptr<ns3::RateErrorModel> right_rate_error_model = ns3::CreateObject<ns3::RateErrorModel>();
 
     left_rate_error_model->SetRate(std::pow(10.0, loss_rate_exponent));
-    left_rate_error_model->SetUnit(ns3::RateErrorModel::ErrorUnit::ERROR_UNIT_PACKET);
     right_rate_error_model->SetRate(std::pow(10.0, loss_rate_exponent));
-    right_rate_error_model->SetUnit(ns3::RateErrorModel::ErrorUnit::ERROR_UNIT_PACKET);
-
     left_bottlneck_net_device->SetAttribute("ReceiveErrorModel", ns3::PointerValue(left_rate_error_model));
     right_bottlneck_net_device->SetAttribute("ReceiveErrorModel", ns3::PointerValue(right_rate_error_model));
 
@@ -113,7 +110,7 @@ int main(int argc, char* argv[])
             socket->TraceConnectWithoutContext("CongestionWindow", ns3::MakeBoundCallback(congestion_window_change, output_stream_wrapper));
         }
 
-        app->Setup (socket, ns3::InetSocketAddress(p2p_dumbbell_helper.GetRightIpv4Address(i), 9), 1024, 12000000, ns3::DataRate("1Gbps"));
+        app->Setup (socket, ns3::InetSocketAddress(p2p_dumbbell_helper.GetRightIpv4Address(i), 9), 1024, 120000 * offline_3::SIMULATION_TIME, ns3::DataRate("1Gbps"));
         p2p_dumbbell_helper.GetLeft (i)->AddApplication(app);
         sender_apps.Add(app);
     }

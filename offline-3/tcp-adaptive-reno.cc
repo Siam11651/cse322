@@ -61,26 +61,28 @@ TcpAdaptiveReno::GetTypeId (void)
 
 TcpAdaptiveReno::TcpAdaptiveReno()
     : TcpWestwoodPlus(),
-      m_rtt_current(ns3::Time(0)),
-      m_rtt_cong(ns3::Time(0)),
-      m_rtt_min(ns3::Time(0)),
-      m_rtt_cong_prev(ns3::Time(0)),
-      m_rtt_packet_loss(ns3::Time(0)),
+      m_rtt_current(0),
+      m_rtt_cong(0),
+      m_rtt_min(0),
+      m_rtt_packet_loss(0),
+      m_rtt_cong_prev(0),
       m_increase_window(0),
-      m_base_window(0)
+      m_base_window(0),
+      m_probe_window(0)
 {
     NS_LOG_FUNCTION(this);
 }
 
 TcpAdaptiveReno::TcpAdaptiveReno(const TcpAdaptiveReno& sock)
     : TcpWestwoodPlus(sock),
-      m_rtt_cong(sock.m_rtt_cong),
       m_rtt_current(sock.m_rtt_current),
+      m_rtt_cong(sock.m_rtt_cong),
       m_rtt_min(sock.m_rtt_min),
-      m_rtt_cong_prev(sock.m_rtt_cong_prev),
       m_rtt_packet_loss(sock.m_rtt_packet_loss),
+      m_rtt_cong_prev(sock.m_rtt_cong_prev),
       m_increase_window(sock.m_increase_window),
-      m_base_window(sock.m_base_window)
+      m_base_window(sock.m_base_window),
+      m_probe_window(sock.m_probe_window)
 {
     NS_LOG_FUNCTION(this);
     NS_LOG_LOGIC("Invoked the copy constructor");

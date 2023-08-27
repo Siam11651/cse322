@@ -1,6 +1,6 @@
 outdir="out"
 
-rm -r "$outdir"
+rm -rf "$outdir"
 mkdir "$outdir"
 
 throughput_vs_data_rate_file="throughput-vs-data-rate.dat"
@@ -21,10 +21,14 @@ throughput_vs_loss_rate_file="throughput-vs-loss-rate.dat"
 touch "$outdir/$throughput_vs_loss_rate_file"
 echo "# LossRate Throughput1 Throughput2" >> "$outdir/$throughput_vs_loss_rate_file"
 
-for i in $(seq -6 0.1 -1)
+for i in $(seq -6 0.1 -2)
 do
     average_throughput=$(./ns3 run --quiet "scratch/1905039/1905039.cc --loss-rate-exponent=$i")
     echo "$i $average_throughput" >> "$outdir/$throughput_vs_loss_rate_file"
 done
 
 gnuplot -c "scratch/throughput-vs-loss-rate.plt"
+
+./ns3 run --quiet "scratch/1905039/1905039.cc --trace-congestion" > /dev/null
+
+gnuplot -c "scratch/cwnd-vs-time.plt"
