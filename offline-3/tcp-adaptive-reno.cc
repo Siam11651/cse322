@@ -75,14 +75,14 @@ TcpAdaptiveReno::TcpAdaptiveReno()
 
 TcpAdaptiveReno::TcpAdaptiveReno(const TcpAdaptiveReno& sock)
     : TcpWestwoodPlus(sock),
-      m_rtt_current(sock.m_rtt_current),
-      m_rtt_cong(sock.m_rtt_cong),
-      m_rtt_min(sock.m_rtt_min),
-      m_rtt_packet_loss(sock.m_rtt_packet_loss),
-      m_rtt_cong_prev(sock.m_rtt_cong_prev),
-      m_increase_window(sock.m_increase_window),
-      m_base_window(sock.m_base_window),
-      m_probe_window(sock.m_probe_window)
+      m_rtt_current(0),
+      m_rtt_cong(0),
+      m_rtt_min(0),
+      m_rtt_packet_loss(0),
+      m_rtt_cong_prev(0),
+      m_increase_window(0),
+      m_base_window(0),
+      m_probe_window(0)
 {
     NS_LOG_FUNCTION(this);
     NS_LOG_LOGIC("Invoked the copy constructor");
@@ -116,6 +116,8 @@ TcpAdaptiveReno::PktsAcked(Ptr<TcpSocketState> tcb, uint32_t packetsAcked, const
 
     m_rtt_current = rtt;
 
+    NS_LOG_LOGIC("Min RTT is : " << m_rtt_min.GetMilliSeconds() << "ms");
+    NS_LOG_LOGIC ("CurRtt: " << m_rtt_current.GetMilliSeconds () << "ms");
     EstimateBW(rtt, tcb);
 }
 
@@ -155,13 +157,13 @@ TcpAdaptiveReno::EstimateCongestionLevel()
 
     if(m_rtt_cong_prev < m_rtt_min)
     {
-        alpha_use = 0;
+        alpha_use = 0.0;
     }
 
     double_t rtt_cong_seconds = alpha_use * m_rtt_cong_prev.GetSeconds() + (1 - alpha_use) * m_rtt_packet_loss.GetSeconds();
     m_rtt_cong = ns3::Seconds(rtt_cong_seconds);
 
-    return std::min(((m_rtt_packet_loss - m_rtt_min) / (m_rtt_cong - m_rtt_min)).GetDouble(), 1.0);
+    return std::min((m_rtt_packet_loss.GetSeconds() - m_rtt_min.GetSeconds()) / (m_rtt_cong.GetSeconds() - m_rtt_min.GetSeconds()), 1.0);
 }
 
 void
@@ -170,8 +172,8 @@ TcpAdaptiveReno::EstimateIncWnd(ns3::Ptr<ns3::TcpSocketState> tcb)
     double_t congestion_level = EstimateCongestionLevel();
     double_t max_increase_window = (m_currentBW.Get().GetBitRate() * std::pow(tcb->m_segmentSize, 2.0)) / SCALING_FACTOR;
     double_t alpha = 10.0;
-    double_t beta = 2.0 * max_increase_window * (1.0 / alpha - (1.0 / alpha + 1.0) * std::exp(alpha));
-    double_t gamma = 1.0 - 2.0 * max_increase_window * (1.0 / alpha - (1.0 / alpha + 0.5) * std::exp(alpha));
+    double_t beta = 2.0 * max_increase_window * (1.0 / alpha - (1.0 / alpha + 1.0) / std::exp(alpha));
+    double_t gamma = 1.0 - 2.0 * max_increase_window * (1.0 / alpha - (1.0 / alpha + 0.5) / std::exp(alpha));
     m_increase_window = (max_increase_window / std::exp(congestion_level * alpha)) +  congestion_level * beta + gamma;
 }
 
@@ -206,9 +208,14 @@ TcpAdaptiveReno::CongestionAvoidance(Ptr<TcpSocketState> tcb, uint32_t segmentsA
     {
         EstimateIncWnd(tcb);
 
-        m_base_window += std::max(1.0, std::pow(tcb->m_segmentSize, 2.0) * tcb->m_cWnd.Get());
+        m_base_window += std::max(1.0, std::pow(tcb->m_segmentSize, 2.0) / tcb->m_cWnd.Get());
         m_probe_window = std::max(m_probe_window + m_increase_window / tcb->m_cWnd.Get(), 0.0);
+
+        NS_LOG_LOGIC("Before " << tcb->m_cWnd << " ; base " << m_base_window <<" ; probe " << m_probe_window);
+
         tcb->m_cWnd.Set(m_base_window + m_probe_window);
+
+        NS_LOG_INFO("In CongAvoid, updated to cwnd " << tcb->m_cWnd << " ssthresh " << tcb->m_ssThresh);
     }
 }
 

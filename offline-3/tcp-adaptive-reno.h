@@ -99,7 +99,7 @@ class TcpAdaptiveReno : public TcpWestwoodPlus
     void EstimateIncWnd(Ptr<ns3::TcpSocketState> tcb);
 
     const double_t ALPHA = 0.85;
-    const double_t SCALING_FACTOR = 1000;
+    const double_t SCALING_FACTOR = 1000.0;
     ns3::Time m_rtt_current;
     ns3::Time m_rtt_cong;
     ns3::Time m_rtt_min;

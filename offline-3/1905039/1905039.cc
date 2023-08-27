@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
     left_bottlneck_net_device->SetAttribute("ReceiveErrorModel", ns3::PointerValue(left_rate_error_model));
     right_bottlneck_net_device->SetAttribute("ReceiveErrorModel", ns3::PointerValue(right_rate_error_model));
 
-    ns3::Config::SetDefault("ns3::TcpL4Protocol::SocketType", ns3::StringValue("ns3::TcpNewReno"));
+    ns3::Config::SetDefault("ns3::TcpL4Protocol::SocketType", ns3::StringValue("ns3::TcpAdaptiveReno"));
 
     ns3::InternetStackHelper bottleneck_internet_stack_helper;
     ns3::InternetStackHelper pair_newreno_internet_stack_helper;
