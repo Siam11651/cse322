@@ -17,14 +17,14 @@ NS_LOG_COMPONENT_DEFINE("1905039");
 
 static void congestion_window_change(ns3::Ptr<ns3::OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwnd)
 {
-    *stream->GetStream() << std::fixed << ns3::Now().GetSeconds() << " " << newCwnd << std::endl;
+    *stream->GetStream() << std::fixed << ns3::Now().GetSeconds() << " " << newCwnd / 1000000.0 << std::endl;
 }
 
 int main(int argc, char* argv[])
 {
     uint64_t bottleneck_rate = 50;
     double_t loss_rate_exponent = -6;
-    std::string algorithm = "TcpNewReno";
+    std::string algorithm = "TcpWestwoodPlus";
     bool trace_congestion = false;
     bool verbose = false;
     ns3::CommandLine cmd(__FILE__);
@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
     left_bottlneck_net_device->SetAttribute("ReceiveErrorModel", ns3::PointerValue(left_rate_error_model));
     right_bottlneck_net_device->SetAttribute("ReceiveErrorModel", ns3::PointerValue(right_rate_error_model));
 
-    ns3::Config::SetDefault("ns3::TcpL4Protocol::SocketType", ns3::StringValue("ns3::" + algorithm));
+    ns3::Config::SetDefault("ns3::TcpL4Protocol::SocketType", ns3::StringValue("ns3::TcpNewReno"));
 
     ns3::InternetStackHelper bottleneck_internet_stack_helper;
     ns3::InternetStackHelper pair_newreno_internet_stack_helper;
@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
 
     bottleneck_internet_stack_helper.Install({p2p_dumbbell_helper.GetLeft(), p2p_dumbbell_helper.GetRight()});
     bottleneck_internet_stack_helper.Install({p2p_dumbbell_helper.GetLeft(0), p2p_dumbbell_helper.GetRight(0)});
-    ns3::Config::SetDefault("ns3::TcpL4Protocol::SocketType", ns3::StringValue("ns3::TcpWestwoodPlus"));
+    ns3::Config::SetDefault("ns3::TcpL4Protocol::SocketType", ns3::StringValue("ns3::" + algorithm));
     bottleneck_internet_stack_helper.Install({p2p_dumbbell_helper.GetLeft(1), p2p_dumbbell_helper.GetRight(1)});
 
     ns3::Ipv4AddressHelper bottleneck_address_helper;
@@ -119,7 +119,7 @@ int main(int argc, char* argv[])
             socket->TraceConnectWithoutContext("CongestionWindow", ns3::MakeBoundCallback(congestion_window_change, output_stream_wrapper));
         }
 
-        app->Setup (socket, ns3::InetSocketAddress(p2p_dumbbell_helper.GetRightIpv4Address(i), 9), 1024, 120000 * offline_3::SIMULATION_TIME, ns3::DataRate("1Gbps"));
+        app->Setup (socket, ns3::InetSocketAddress(p2p_dumbbell_helper.GetRightIpv4Address(i), 9), offline_3::PACKET_SIZE, UINT32_MAX, ns3::DataRate("1Gbps"));
         p2p_dumbbell_helper.GetLeft (i)->AddApplication(app);
         sender_apps.Add(app);
     }
@@ -132,8 +132,8 @@ int main(int argc, char* argv[])
     }
 
     ns3::FlowMonitorHelper flow_monitor_helper;
-
     ns3::Ptr<ns3::FlowMonitor> flow_monitor = flow_monitor_helper.InstallAll();
+
     sender_apps.Start(ns3::Seconds(1));
     reciever_apps.Start(ns3::Seconds(0));
     ns3::Ipv4GlobalRoutingHelper::PopulateRoutingTables();
@@ -142,10 +142,24 @@ int main(int argc, char* argv[])
     ns3::Simulator::Destroy();
 
     const ns3::FlowMonitor::FlowStatsContainer &flow_stats = flow_monitor->GetFlowStats();
-    double_t throughput1 = ((flow_stats.at(1).rxBytes + flow_stats.at(3).rxBytes) * 8.0) / offline_3::SIMULATION_TIME;
-    double_t throughput2 = ((flow_stats.at(2).rxBytes + flow_stats.at(4).rxBytes) * 8.0) / offline_3::SIMULATION_TIME;
+    double_t last_rx_time1 = std::max(flow_stats.at(1).timeLastRxPacket.GetSeconds(), flow_stats.at(3).timeLastRxPacket.GetSeconds());
+    double_t last_rx_time2 = std::max(flow_stats.at(2).timeLastRxPacket.GetSeconds(), flow_stats.at(4).timeLastRxPacket.GetSeconds());
+    double_t throughput1 = ((flow_stats.at(1).rxBytes + flow_stats.at(3).rxBytes) * 8.0) / last_rx_time1;
+    double_t throughput2 = ((flow_stats.at(2).rxBytes + flow_stats.at(4).rxBytes) * 8.0) / last_rx_time2;
+    uint64_t count = 0;
+    uint64_t fairness_numerator = 0;
+    uint64_t fairness_denominator = 0;
 
-    std::cout << std::fixed << throughput1 << " " << throughput2 << std::endl;
+    for(ns3::FlowMonitor::FlowStatsContainerCI iterator = flow_stats.begin(); iterator != flow_stats.end(); ++iterator)
+    {
+        fairness_numerator += iterator->second.rxBytes;
+        fairness_denominator += iterator->second.rxBytes * iterator->second.rxBytes;
+        ++count;
+    }
+
+    double_t fairness = (double_t)(fairness_numerator * fairness_numerator) / (count * fairness_denominator);
+
+    std::cout << std::fixed << throughput1 / 1000000.0 << " " << throughput2 / 1000000.0  << " "  << fairness << std::endl;
 
     return 0;
 }

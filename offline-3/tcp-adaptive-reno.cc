@@ -46,15 +46,9 @@ TypeId
 TcpAdaptiveReno::GetTypeId (void)
 {
   static TypeId tid = TypeId("ns3::TcpAdaptiveReno")
-    .SetParent<TcpNewReno>()
+    .SetParent<TcpWestwoodPlus>()
     .SetGroupName ("Internet")
     .AddConstructor<TcpAdaptiveReno>()
-    .AddAttribute("FilterType", "Use this to choose no filter or Tustin's approximation filter",
-                  EnumValue(TcpAdaptiveReno::TUSTIN), MakeEnumAccessor(&TcpAdaptiveReno::m_fType),
-                  MakeEnumChecker(TcpAdaptiveReno::NONE, "None", TcpAdaptiveReno::TUSTIN, "Tustin"))
-    .AddTraceSource("EstimatedBW", "The estimated bandwidth",
-                    MakeTraceSourceAccessor(&TcpAdaptiveReno::m_currentBW),
-                    "ns3::TracedValueCallback::Double")
   ;
   return tid;
 }
@@ -163,14 +157,14 @@ TcpAdaptiveReno::EstimateCongestionLevel()
     double_t rtt_cong_seconds = alpha_use * m_rtt_cong_prev.GetSeconds() + (1 - alpha_use) * m_rtt_packet_loss.GetSeconds();
     m_rtt_cong = ns3::Seconds(rtt_cong_seconds);
 
-    return std::min((m_rtt_packet_loss.GetSeconds() - m_rtt_min.GetSeconds()) / (m_rtt_cong.GetSeconds() - m_rtt_min.GetSeconds()), 1.0);
+    return std::min((m_rtt_current.GetSeconds() - m_rtt_min.GetSeconds()) / (m_rtt_cong.GetSeconds() - m_rtt_min.GetSeconds()), 1.0);
 }
 
 void
 TcpAdaptiveReno::EstimateIncWnd(ns3::Ptr<ns3::TcpSocketState> tcb)
 {
     double_t congestion_level = EstimateCongestionLevel();
-    double_t max_increase_window = (m_currentBW.Get().GetBitRate() * std::pow(tcb->m_segmentSize, 2.0)) / SCALING_FACTOR;
+    double_t max_increase_window = (m_currentBW.Get().GetBitRate() * std::pow(tcb->m_segmentSize, 2.0)) / SCALING_FACTOR / 8.0;
     double_t alpha = 10.0;
     double_t beta = 2.0 * max_increase_window * (1.0 / alpha - (1.0 / alpha + 1.0) / std::exp(alpha));
     double_t gamma = 1.0 - 2.0 * max_increase_window * (1.0 / alpha - (1.0 / alpha + 0.5) / std::exp(alpha));
