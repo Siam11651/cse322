@@ -25,7 +25,7 @@ do
     done
 
     gnuplot -c "scratch/throughput.plt" "TcpNewReno" "$algorithm" "$outdir/$data_rate_file" "$outdir/$data_rate_throughput_plot_file" "Data Rate (Mbps)"
-    gnuplot -c "scratch/fairness.plt" "$outdir/$data_rate_file" "$outdir/$data_rate_fairness_plot_file" "Data Rate (Mbps)"
+    gnuplot -c "scratch/fairness.plt" "$algorithm" "$outdir/$data_rate_file" "$outdir/$data_rate_fairness_plot_file" "Data Rate (Mbps)"
 
     touch "$outdir/$loss_rate_file"
     echo "# LossRate Throughput1 Throughput2 Fairness" >> "$outdir/$loss_rate_file"
@@ -37,7 +37,7 @@ do
     done
 
     gnuplot -c "scratch/throughput.plt" "TcpNewReno" "$algorithm" "$outdir/$loss_rate_file" "$outdir/$loss_rate_throughput_plot_file" "Loss Rate Exponent"
-    gnuplot -c "scratch/fairness.plt" "$outdir/$loss_rate_file" "$outdir/$loss_rate_fairness_plot_file" "Loss Rate Exponent"
+    gnuplot -c "scratch/fairness.plt" "$algorithm" "$outdir/$loss_rate_file" "$outdir/$loss_rate_fairness_plot_file" "Loss Rate Exponent"
 
     ./ns3 run --quiet "scratch/1905039/1905039.cc --algorithm="$algorithm" --trace-congestion" > /dev/null
 

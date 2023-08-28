@@ -22,7 +22,7 @@ static void congestion_window_change(ns3::Ptr<ns3::OutputStreamWrapper> stream, 
 
 int main(int argc, char* argv[])
 {
-    uint64_t bottleneck_rate = 50;
+    uint64_t bottleneck_rate = 300;
     double_t loss_rate_exponent = -6;
     std::string algorithm = "TcpWestwoodPlus";
     bool trace_congestion = false;
@@ -66,13 +66,11 @@ int main(int argc, char* argv[])
     // so we get bottleneck netdevices on index 0
     ns3::Ptr<ns3::NetDevice> left_bottlneck_net_device = p2p_dumbbell_helper.GetLeft()->GetDevice(0);
     ns3::Ptr<ns3::NetDevice> right_bottlneck_net_device = p2p_dumbbell_helper.GetRight()->GetDevice(0);
-    ns3::Ptr<ns3::RateErrorModel> left_rate_error_model = ns3::CreateObject<ns3::RateErrorModel>();
-    ns3::Ptr<ns3::RateErrorModel> right_rate_error_model = ns3::CreateObject<ns3::RateErrorModel>();
+    ns3::Ptr<ns3::RateErrorModel> error_model = ns3::CreateObject<ns3::RateErrorModel>();
 
-    left_rate_error_model->SetRate(std::pow(10.0, loss_rate_exponent));
-    right_rate_error_model->SetRate(std::pow(10.0, loss_rate_exponent));
-    left_bottlneck_net_device->SetAttribute("ReceiveErrorModel", ns3::PointerValue(left_rate_error_model));
-    right_bottlneck_net_device->SetAttribute("ReceiveErrorModel", ns3::PointerValue(right_rate_error_model));
+    error_model->SetRate(std::pow(10.0, loss_rate_exponent));
+    left_bottlneck_net_device->SetAttribute("ReceiveErrorModel", ns3::PointerValue(error_model));
+    right_bottlneck_net_device->SetAttribute("ReceiveErrorModel", ns3::PointerValue(error_model));
 
     ns3::Config::SetDefault("ns3::TcpL4Protocol::SocketType", ns3::StringValue("ns3::TcpNewReno"));
 
