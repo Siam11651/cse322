@@ -24,14 +24,16 @@ int main(int argc, char* argv[])
 {
     uint64_t bottleneck_rate = 50;
     double_t loss_rate_exponent = -6;
+    std::string algorithm = "TcpNewReno";
     bool trace_congestion = false;
     bool verbose = false;
     ns3::CommandLine cmd(__FILE__);
 
     cmd.AddValue("bottleneck-rate", "Set bottlneck data rate", bottleneck_rate);
     cmd.AddValue("loss-rate-exponent", "Set packet loss rate exponent", loss_rate_exponent);
-    cmd.AddValue("verbose", "Enable verbose mode", verbose);
+    cmd.AddValue("algorithm", "Set algorithm for second flow", algorithm);
     cmd.AddValue("trace-congestion", "Trace Congestion Window", trace_congestion);
+    cmd.AddValue("verbose", "Enable verbose mode", verbose);
     cmd.Parse(argc, argv);
 
     uint64_t bandwidth_delay_product = (bottleneck_rate * 100000) / offline_3::PACKET_SIZE / 8;
@@ -72,7 +74,7 @@ int main(int argc, char* argv[])
     left_bottlneck_net_device->SetAttribute("ReceiveErrorModel", ns3::PointerValue(left_rate_error_model));
     right_bottlneck_net_device->SetAttribute("ReceiveErrorModel", ns3::PointerValue(right_rate_error_model));
 
-    ns3::Config::SetDefault("ns3::TcpL4Protocol::SocketType", ns3::StringValue("ns3::TcpAdaptiveReno"));
+    ns3::Config::SetDefault("ns3::TcpL4Protocol::SocketType", ns3::StringValue("ns3::" + algorithm));
 
     ns3::InternetStackHelper bottleneck_internet_stack_helper;
     ns3::InternetStackHelper pair_newreno_internet_stack_helper;
@@ -103,7 +105,14 @@ int main(int argc, char* argv[])
 
         if(trace_congestion)
         {
-            ns3::Ptr<ns3::OutputStreamWrapper> output_stream_wrapper = ascii_trace_helper.CreateFileStream("out/congestion-window-" + std::to_string(i + 1) + ".dat");
+            std::string algorithm_to_lower = algorithm;
+
+            std::transform(algorithm_to_lower.begin(), algorithm_to_lower.end(), algorithm_to_lower.begin(), [](char c)
+            {
+                return std::tolower(c);
+            });
+
+            ns3::Ptr<ns3::OutputStreamWrapper> output_stream_wrapper = ascii_trace_helper.CreateFileStream("out/congestion-window-" + std::to_string(i + 1) + "-" + algorithm_to_lower + ".dat");
 
             *output_stream_wrapper->GetStream() << "# Time\tWindow" << std::endl;
             
