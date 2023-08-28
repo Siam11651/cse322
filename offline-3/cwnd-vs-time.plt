@@ -1,4 +1,4 @@
-set terminal png size 6400, 480
+set terminal png size 640, 480
 set output ARG5
 set ylabel "cwnd (MB)"
 set xlabel "Time (s)"

@@ -157,6 +157,8 @@ TcpAdaptiveReno::EstimateCongestionLevel()
     double_t rtt_cong_seconds = alpha_use * m_rtt_cong_prev.GetSeconds() + (1 - alpha_use) * m_rtt_packet_loss.GetSeconds();
     m_rtt_cong = ns3::Seconds(rtt_cong_seconds);
 
+    NS_LOG_LOGIC("cong rtt : " << m_rtt_cong << " ; m_rtt_cong_prev : " << m_rtt_cong_prev << " ; rtt packet loss : " << m_rtt_packet_loss);
+
     return std::min((m_rtt_current.GetSeconds() - m_rtt_min.GetSeconds()) / (m_rtt_cong.GetSeconds() - m_rtt_min.GetSeconds()), 1.0);
 }
 
@@ -169,6 +171,13 @@ TcpAdaptiveReno::EstimateIncWnd(ns3::Ptr<ns3::TcpSocketState> tcb)
     double_t beta = 2.0 * max_increase_window * (1.0 / alpha - (1.0 / alpha + 1.0) / std::exp(alpha));
     double_t gamma = 1.0 - 2.0 * max_increase_window * (1.0 / alpha - (1.0 / alpha + 0.5) / std::exp(alpha));
     m_increase_window = (max_increase_window / std::exp(congestion_level * alpha)) +  congestion_level * beta + gamma;
+
+    NS_LOG_LOGIC("MinRtt: " << m_rtt_min.GetMilliSeconds() << "ms");
+    NS_LOG_LOGIC("ConjRtt: " << m_rtt_cong.GetMilliSeconds() << "ms");
+    NS_LOG_LOGIC("max_increase_window: " << max_increase_window <<"; congestion: " << congestion_level << " ; beta: " << beta <<" ; gamma: "<< gamma << " ; exp(alpha * congestion): " << std::exp(alpha * congestion_level));
+    NS_LOG_LOGIC("m_increase_window: " << m_increase_window << " ; prev_wind: " << tcb->m_cWnd << " ; new: " << (m_increase_window / tcb->m_cWnd));
+    NS_LOG_LOGIC("Congestion level: " << congestion_level);
+    NS_LOG_LOGIC("Increment Window: " << m_increase_window);
 }
 
 uint32_t
@@ -180,6 +189,8 @@ TcpAdaptiveReno::GetSsThresh(Ptr<const TcpSocketState> tcb, uint32_t bytesInFlig
     double_t ss_thresh = std::max(2.0 * tcb->m_segmentSize, tcb->m_cWnd.Get() / (1.0 + congestion_level));
     m_base_window = ss_thresh;
     m_probe_window = 0;
+
+    NS_LOG_LOGIC("new ssthresh : " << ss_thresh <<" ; old cong rtt : "<< m_rtt_cong_prev <<" ; new cong rtt : " << m_rtt_cong << " ; cong : " << congestion_level);
 
     return ss_thresh;
 }
