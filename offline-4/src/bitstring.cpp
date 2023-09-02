@@ -17,7 +17,7 @@ std::ostream &offline4::operator << (std::ostream &ostream, const offline4::bits
 {
     for(offline4::bitstring::const_iterator iterator = bitblock.begin(); iterator != bitblock.end(); ++iterator)
     {
-        ostream << offline4::bitstring::color_to_code_mapper.at(iterator->get_color()) << iterator->get_value() << offline4::bitstring::color_to_code_mapper.at(offline4::bit::color::DEFAULT);
+        ostream << offline4::bitstring::color_to_code_mapper.at(iterator->get_color()) << *iterator << offline4::bitstring::color_to_code_mapper.at(offline4::bit::color::DEFAULT);
     }
 
     return ostream;

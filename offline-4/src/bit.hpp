@@ -1,6 +1,8 @@
 #ifndef BIT_H
 #define BIT_H
 
+#include <ostream>
+
 namespace offline4
 {
     class bit
@@ -22,7 +24,10 @@ namespace offline4
         void set_color(const offline4::bit::color &color);
         bool get_value() const;
         offline4::bit::color get_color() const;
+        friend std::ostream &operator << (std::ostream &ostream, const offline4::bit &bit);
     };
+
+    std::ostream &operator << (std::ostream &ostream, const offline4::bit &bit);
 }
 
 #endif

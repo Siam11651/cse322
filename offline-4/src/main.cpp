@@ -131,5 +131,35 @@ int main()
         std::cout << *iterator << std::endl;
     }
 
+    std::vector<std::vector<offline4::bit>> bit_matrix(blocks.size(), std::vector<offline4::bit>(blocks.front().size()));
+    size_t i = 0;
+
+    for(std::vector<offline4::bitstring>::const_iterator block_iterator = blocks.begin(); block_iterator != blocks.end(); ++block_iterator, ++i)
+    {
+        size_t j = 0;
+
+        for(offline4::bitstring::const_iterator bit_iterator = block_iterator->begin(); bit_iterator != block_iterator->end(); ++bit_iterator, ++j)
+        {
+            bit_matrix[i][j] = *bit_iterator;
+        }
+    }
+
+    std::cout << std::endl;
+
+    offline4::bitstring serialized_bitstring;
+
+    for(size_t i = 0; i < blocks.front().size(); ++i)
+    {
+        for(size_t j = 0; j < blocks.size(); ++j)
+        {
+            serialized_bitstring.push_back(offline4::bit(bit_matrix[j][i].get_value()));
+        }
+    }
+
+    std::cout << "Data bits after column-wide serialization:" << std::endl;
+
+    std::cout << serialized_bitstring << std::endl;
+    std::cout << std::endl;
+
     return 0;
 }

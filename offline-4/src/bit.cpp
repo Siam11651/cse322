@@ -31,3 +31,10 @@ offline4::bit::color offline4::bit::get_color() const
 {
     return m_color;
 }
+
+std::ostream &offline4::operator << (std::ostream &ostream, const offline4::bit &bit)
+{
+    ostream << bit.get_value();
+
+    return ostream;
+}
