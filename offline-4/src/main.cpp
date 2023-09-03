@@ -207,5 +207,58 @@ int main()
     std::cout << distorted_bitstring << std::endl;
     std::cout << std::endl;
 
+    offline4::bitstring error_detector_bitstring = distorted_bitstring % polynomial_bitstring;
+    std::string verdict = "Error detected";
+
+    if(error_detector_bitstring == offline4::bitstring({false}))
+    {
+        verdict = "No error detected";
+    }
+
+    std::cout << "Result of CRC checksum matching: " << verdict << std::endl;
+    std::cout << std::endl;
+
+    for(size_t i = 0; i < polynomial_bitstring.size() - 1; ++i)
+    {
+        distorted_bitstring.pop_back();
+    }
+
+    i = 0;
+    size_t j = 0;
+
+    for(offline4::bitstring::const_iterator iterator = distorted_bitstring.begin(); iterator != distorted_bitstring.end(); ++iterator)
+    {
+        bit_matrix[j][i] = *iterator;
+
+        ++j;
+
+        if(j == blocks.size())
+        {
+            j = 0;
+            ++i;
+        }
+    }
+
+    for(size_t i = 0; i < blocks.size(); ++i)
+    {
+        offline4::bitstring bitstring;
+
+        for(std::vector<offline4::bit>::const_iterator iterator = bit_matrix[i].begin(); iterator != bit_matrix[i].end(); ++iterator)
+        {
+            bitstring.push_back(*iterator);
+        }
+
+        blocks[i] = bitstring;
+    }
+
+    std::cout << "Data blocks after removing CRC checksum bits:" << std::endl;
+
+    for(std::vector<offline4::bitstring>::const_iterator iterator = blocks.begin(); iterator != blocks.end(); ++iterator)
+    {
+        std::cout << *iterator << std::endl;
+    }
+
+    std::cout << std::endl;
+
     return 0;
 }

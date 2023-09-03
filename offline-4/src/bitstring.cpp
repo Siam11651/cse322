@@ -1,5 +1,6 @@
 #include <exception>
 #include <random>
+#include <iostream>
 #include "bitstring.hpp"
 
 offline4::bitstring::bitstring(const uint64_t &size, const offline4::bit &value) : std::list<bit>(size, value)
@@ -83,9 +84,9 @@ std::strong_ordering offline4::bitstring::operator <=> (const offline4::bitstrin
 
     while(left_iterator != left.end() && right_iterator != right.end()) // altho, they supposed to be inequal at the same time
     {
-        if(left_iterator != right_iterator)
+        if(*left_iterator != *right_iterator)
         {
-            if(left_iterator->get_value() < right_iterator->get_value())
+            if(*left_iterator < *right_iterator)
             {
                 return std::strong_ordering::less;
             }
@@ -216,7 +217,7 @@ offline4::bitstring offline4::bitstring::operator % (const offline4::bitstring &
 
     for(size_t i = divisor.size(); i < this->size(); ++i, ++dividend_iterator)
     {
-        if(dividend_part < divisor)
+        if(dividend_part.front() < divisor.front())
         {
             dividend_part = dividend_part ^ offline4::bitstring({false});
         }
@@ -229,7 +230,7 @@ offline4::bitstring offline4::bitstring::operator % (const offline4::bitstring &
         dividend_part.push_back(*dividend_iterator);
     }
 
-    if(dividend_part < divisor)
+    if(dividend_part.front() < divisor.front())
     {
         dividend_part = dividend_part ^ offline4::bitstring({false});
     }

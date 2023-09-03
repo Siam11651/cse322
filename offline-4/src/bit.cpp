@@ -56,6 +56,11 @@ std::strong_ordering offline4::bit::operator <=> (const offline4::bit &other) co
     }
 }
 
+bool offline4::bit::operator == (const offline4::bit &other) const
+{
+    return m_value == other.m_value;
+}
+
 std::ostream &offline4::operator << (std::ostream &ostream, const offline4::bit &bit)
 {
     ostream << offline4::bit::color_to_code_mapper.at(bit.get_color()) << bit.get_value() << offline4::bit::color_to_code_mapper.at(offline4::bit::color::none);

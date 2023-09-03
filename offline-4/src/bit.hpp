@@ -28,6 +28,7 @@ namespace offline4
         bool get_value() const;
         offline4::bit::color get_color() const;
         std::strong_ordering operator <=> (const offline4::bit &other) const;
+        bool operator == (const offline4::bit &other) const;
         friend std::ostream &operator << (std::ostream &ostream, const offline4::bit &bit);
     };
 
