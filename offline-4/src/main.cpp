@@ -25,6 +25,30 @@ int main()
 
     number_of_bytes_per_row = std::stoul(line);
 
+    std::cout << "Enter probability: ";
+
+    std::getline(std::cin, line);
+
+    double_t distortion_probability = std::stod(line);
+
+    std::cout << "Enter generator polynomial: ";
+
+    std::getline(std::cin, line);
+
+    offline4::bitstring polynomial_bitstring;
+
+    for(std::string::const_iterator iterator = line.begin(); iterator != line.end(); ++iterator)
+    {
+        if(*iterator == '1')
+        {
+            polynomial_bitstring.push_back(true);
+        }
+        else if(*iterator == '0')
+        {
+            polynomial_bitstring.push_back(false);
+        }
+    }
+
     if(data_string.size() % number_of_bytes_per_row != 0)
     {
         uint64_t pad_size = number_of_bytes_per_row - (data_string.size() % number_of_bytes_per_row);
@@ -72,7 +96,7 @@ int main()
         {
             if(count == (1 << shifter))
             {
-                block_iterator->insert(bit_iterator, offline4::bit(false, offline4::bit::color::GREEN));
+                block_iterator->insert(bit_iterator, offline4::bit(false, offline4::bit::color::green));
 
                 ++shifter;
                 --bit_iterator;
@@ -157,8 +181,30 @@ int main()
     }
 
     std::cout << "Data bits after column-wide serialization:" << std::endl;
-
     std::cout << serialized_bitstring << std::endl;
+    std::cout << std::endl;
+
+    offline4::bitstring dividend_bitstring(serialized_bitstring);
+
+    dividend_bitstring.resize(serialized_bitstring.size() + polynomial_bitstring.size() - 1);
+
+    offline4::bitstring checksum_bitstring = dividend_bitstring % polynomial_bitstring;
+    offline4::bitstring appended_bitstring(serialized_bitstring);
+
+    for(offline4::bitstring::iterator iterator = checksum_bitstring.begin(); iterator != checksum_bitstring.end(); ++iterator)
+    {
+        iterator->set_color(offline4::bit::color::blue);
+        appended_bitstring.push_back(*iterator);
+    }
+
+    std::cout << "Data bits after appending CRC checksum:" << std::endl;
+    std::cout << appended_bitstring << std::endl;
+    std::cout << std::endl;
+
+    offline4::bitstring distorted_bitstring = appended_bitstring.distort(distortion_probability);
+
+    std::cout << "Recieved frame:" << std::endl;
+    std::cout << distorted_bitstring << std::endl;
     std::cout << std::endl;
 
     return 0;
