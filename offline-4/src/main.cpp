@@ -88,7 +88,6 @@ int main()
 
     for(std::vector<offline4::bitstring>::iterator block_iterator = blocks.begin(); block_iterator != blocks.end(); ++block_iterator)
     {
-        offline4::bitstring bitstring(*block_iterator);
         uint64_t count = 1;
         uint64_t shifter = 0;
 
@@ -112,7 +111,7 @@ int main()
         for(offline4::bitstring::const_iterator bit_iterator = block_iterator->begin(); bit_iterator != block_iterator->end(); ++bit_iterator)
         {
             ++count;
-            uint64_t bit_masker = 0;
+            uint64_t check_bit_index = 0;
 
             if(count == (1 << shifter))
             {
@@ -121,14 +120,14 @@ int main()
                 continue;
             }
             
-            while((count >> bit_masker) != 0)
+            while((count >> check_bit_index) != 0)
             {
-                if(count & (1 << bit_masker))
+                if(count & (1 << check_bit_index))
                 {
-                    check_values[bit_masker] = check_values[bit_masker] ^ bit_iterator->get_value();
+                    check_values[check_bit_index] = check_values[check_bit_index] ^ bit_iterator->get_value();
                 }
 
-                ++bit_masker;
+                ++check_bit_index;
             }
         }
 
@@ -259,6 +258,128 @@ int main()
     }
 
     std::cout << std::endl;
+
+    for(std::vector<offline4::bitstring>::iterator block_iterator = blocks.begin(); block_iterator != blocks.end(); ++block_iterator)
+    {
+        uint64_t count = 0;
+        uint64_t shifter = 0;
+        std::vector<bool> check_values((uint64_t)std::log2(block_iterator->size()) + 2, false);
+
+        for(offline4::bitstring::const_iterator bit_iterator = block_iterator->begin(); bit_iterator != block_iterator->end(); ++bit_iterator)
+        {
+            ++count;
+
+            if(count == (1 << shifter))
+            {
+                check_values[shifter] = bit_iterator->get_value();
+
+                ++shifter;
+            }
+        }
+
+        count = 0;
+        shifter = 0;
+
+        for(offline4::bitstring::const_iterator bit_iterator = block_iterator->begin(); bit_iterator != block_iterator->end(); ++bit_iterator)
+        {
+            ++count;
+            uint64_t check_bit_index = 0;
+
+            if(count == (1 << shifter))
+            {
+                ++shifter;
+
+                continue;
+            }
+            
+            while((count >> check_bit_index) != 0)
+            {
+                if(count & (1 << check_bit_index))
+                {
+                    check_values[check_bit_index] = check_values[check_bit_index] ^ bit_iterator->get_value();
+                }
+
+                ++check_bit_index;
+            }
+        }
+
+        uint64_t distorted_bit = 0;
+
+        for(size_t i = 0; i < check_values.size(); ++i)
+        {
+            if(check_values[i])
+            {
+                distorted_bit |= (1 << i);
+            }
+        }
+
+        count = 0;
+
+        for(offline4::bitstring::iterator bit_iterator = block_iterator->begin(); bit_iterator != block_iterator->end(); ++bit_iterator)
+        {
+            ++count;
+
+            if(count == distorted_bit)
+            {
+                bit_iterator->set_value(!bit_iterator->get_value());
+            }
+        }
+
+        offline4::bitstring new_block;
+        count = 0;
+        shifter = 0;
+
+        for(offline4::bitstring::const_iterator bit_iterator = block_iterator->begin(); bit_iterator != block_iterator->end(); ++bit_iterator)
+        {
+            ++count;
+
+            if(count == (1 << shifter))
+            {
+                ++shifter;
+
+                continue;
+            }
+        
+            new_block.push_back(offline4::bit(bit_iterator->get_value()));
+        }
+
+        *block_iterator = new_block;
+    }
+
+    std::cout << "Data block after removing check bit:" << std::endl;
+
+    for(std::vector<offline4::bitstring>::const_iterator block_iterator = blocks.begin(); block_iterator != blocks.end(); ++block_iterator)
+    {
+        std::cout << *block_iterator << std::endl;
+    }
+
+    std::cout << std::endl;
+
+    std::string new_string(number_of_bytes_per_row * blocks.size(), '\0');
+
+    for(size_t i = 0; i < blocks.size(); ++i)
+    {
+        offline4::bitstring::iterator iterator = blocks[i].begin();
+
+        for(size_t j = 0; j < number_of_bytes_per_row; ++j)
+        {
+            uint8_t byte = 0;
+
+            for(size_t k = 0; k < 8; ++k)
+            {
+                if(iterator->get_value())
+                {
+                    byte |= (1 << (7 - k));
+                }
+
+                ++iterator;
+            }
+
+            new_string[i * number_of_bytes_per_row + j] = byte;
+        }
+    }
+
+    std::cout << "Output frame: " << new_string << std::endl;
 
     return 0;
 }

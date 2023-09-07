@@ -52,7 +52,7 @@ offline4::bitstring offline4::bitstring::distort(const double_t &probability) co
     {
         uint64_t value = random_device_engine() % limit;
 
-        if(value <= (uint64_t)((limit - 1) * probability))
+        if(value < (uint64_t)(limit * probability))
         {
             to_return.push_back(offline4::bit(!iterator->get_value(), offline4::bit::color::red));
         }
